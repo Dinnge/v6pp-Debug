@@ -14,7 +14,7 @@ void main1(){
     else{
         //3#
         if(fork()){
-            sleep(1)
+            sleep(1);
             if(fork()){
                 //3#
                 pid=getpid();

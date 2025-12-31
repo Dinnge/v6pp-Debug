@@ -18,6 +18,6 @@
         "stdio.h": "c",
         "__splash.h": "c"
     },
-    "cmake.sourceDirectory": "/home/vesper_center_286/unix-v6pp-tongji/programs",
+    "cmake.sourceDirectory": "/home/dmy/v6pp/unix-v6pp-tongji/programs",
     "C_Cpp.errorSquiggles": "disabled"
 }

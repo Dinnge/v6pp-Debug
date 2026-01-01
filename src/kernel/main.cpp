@@ -29,6 +29,11 @@
 #include "libyrosstd/sys/types.h"
 #include "libyrosstd/string.h"
 
+// debug函数
+extern "C" void debug_start(void);
+extern "C" void debug_stop(void);
+extern "C" void debug_hook(void);
+
 bool isInit = false;
 
 extern "C" void MasterIRQ7()
@@ -287,6 +292,13 @@ extern "C" void next()
 	}
 	Diagnose::TraceOn();
 
+	// 启动 GDB 调试器
+	Diagnose::Write("\n===================================\n");
+	Diagnose::Write("Starting GDB Debugger...\n");
+	Diagnose::Write("===================================\n\n");
+	
+	// 初始化并启动调试器（会阻塞在这里等待 GDB 连接）
+	debug_start();
 
 #ifdef ENABLE_SPLASH
 	// show splash.

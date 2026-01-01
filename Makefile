@@ -28,6 +28,8 @@ help:
 	@echo "    build and launch unix-v6pp using QEMU (with GDB)"
 	@echo "- make"
 	@echo "    alias for \"make all\""
+	@echo "- make qemug-serial"
+	@echo "    build and launch unix-v6pp using QEMU (with Serial GDB)"
 
 
 .PHONY: prepare
@@ -107,6 +109,9 @@ QEMU_GDB += -gdb chardev:gdb0 -S
 
 QEMU_DISK := -boot c -drive file=target/c.img,if=ide,index=0,media=disk,format=raw
 
+# ´®¿Ú GDB µ÷ÊÔÅäÖÃ
+QEMU_SERIAL_GDB := -serial tcp::1234,server,nowait
+
 
 .PHONY: qemu-no-rebuild
 qemu-no-rebuild:
@@ -139,3 +144,11 @@ all: deploy-full
 
 .PHONY: full
 full: deploy-full
+
+.PHONY: qemug-serial-no-rebuild
+qemug-serial-no-rebuild:
+	$(QEMU) $(QEMU_DISK) $(QEMU_SERIAL_GDB)
+
+
+.PHONY: qemug-serial
+qemug-serial: deploy-full qemug-serial-no-rebuild

@@ -3,7 +3,10 @@
 #include "../debug.h"
 #include "gdb_protocol.h"
 #include "gdb_socket.h"
+#include "gdb_registers.h"
+#include "gdb_breakpoints.h"
 #include "../../include/Video.h"
+
 
 // 调试器全局状态
 static DebuggerState g_debugger = {0};
@@ -15,6 +18,12 @@ int debugger_init(void) {
     g_debugger.listening = 0;
     g_debugger.connected = 0;
     g_debugger.buffer_pos = 0;
+
+    // 初始化寄存器管理
+    gdb_registers_init();
+
+    // 初始化断点管理
+    gdb_breakpoints_init();
 
     // 初始化 socket 层
     if (gdb_socket_init() != 0) {
@@ -145,8 +154,13 @@ void debugger_main(void) {
                                 gdb_handle_remove_breakpoint(packet_buffer);
                                 break;
                             case GDB_CMD_QUERY:
-                                // 暂时忽略查询命令
-                                gdb_send_packet("");
+                                gdb_handle_query(packet_buffer);
+                                break;
+                            case GDB_CMD_VENDOR:
+                                gdb_handle_query(packet_buffer);
+                                break;
+                            case GDB_CMD_SIGNAL:
+                                gdb_handle_signal(packet_buffer);
                                 break;
                             default:
                                 break;

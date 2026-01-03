@@ -18,6 +18,8 @@ typedef enum {
     GDB_CMD_SET_BREAK = 'Z',
     GDB_CMD_REMOVE_BREAK = 'z',
     GDB_CMD_QUERY = 'q',
+    GDB_CMD_SIGNAL = '?',
+    GDB_CMD_VENDOR = 'v',
 } GDBCommand;
 
 typedef struct {

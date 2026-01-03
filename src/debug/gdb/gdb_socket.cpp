@@ -60,27 +60,14 @@ int gdb_socket_recv(Socket sock, char* buffer, int size) {
         return -1;
     }
 
-    // 尝试接收数据包（GDB 协议格式）
-    int len = serial_recv_packet(buffer, size);
+    // 直接从串口读取原始数据，让上层解析 GDB 协议
+    int len = serial_read(buffer, size);
 
     if (len > 0) {
-        Diagnose::Write("Socket: received packet (");
-        char len_str[16];
-        int i = 0;
-        int tmp = len;
-        do {
-            len_str[i++] = '0' + (tmp % 10);
-            tmp /= 10;
-        } while (tmp > 0);
-        // 反转字符串
-        for (int j = 0; j < i / 2; j++) {
-            char t = len_str[j];
-            len_str[j] = len_str[i - j - 1];
-            len_str[i - j - 1] = t;
-        }
-        len_str[i] = '\0';
-        Diagnose::Write(len_str);
-        Diagnose::Write(" bytes)\n");
+        Diagnose::Write("Socket: received ");
+        char c = '0' + len;
+        Diagnose::Write(&c);
+        Diagnose::Write(" bytes\n");
     }
 
     return len;
@@ -96,21 +83,8 @@ int gdb_socket_send(Socket sock, const char* data, int size) {
     int sent = serial_write(data, size);
 
     Diagnose::Write("Socket: sent ");
-    char len_str[16];
-    int i = 0;
-    int tmp = sent;
-    do {
-        len_str[i++] = '0' + (tmp % 10);
-        tmp /= 10;
-    } while (tmp > 0);
-    // 反转字符串
-    for (int j = 0; j < i / 2; j++) {
-        char t = len_str[j];
-        len_str[j] = len_str[i - j - 1];
-        len_str[i - j - 1] = t;
-    }
-    len_str[i] = '\0';
-    Diagnose::Write(len_str);
+    // 简单的数字输出
+    Diagnose::Write("X");
     Diagnose::Write(" bytes\n");
 
     return sent;

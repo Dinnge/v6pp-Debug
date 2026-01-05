@@ -110,7 +110,8 @@ QEMU_GDB += -gdb chardev:gdb0 -S
 QEMU_DISK := -boot c -drive file=target/c.img,if=ide,index=0,media=disk,format=raw
 
 # ´®¿Ú GDB µ÷ÊÔÅäÖÃ
-QEMU_SERIAL_GDB := -serial tcp::1234,server,nowait
+QEMU_SERIAL_GDB := -serial tcp::1234,server,nowait -gdb tcp::2005
+
 
 
 .PHONY: qemu-no-rebuild

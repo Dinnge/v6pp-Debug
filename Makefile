@@ -30,6 +30,12 @@ help:
 	@echo "    alias for \"make all\""
 	@echo "- make qemug-serial"
 	@echo "    build and launch unix-v6pp using QEMU (with Serial GDB)"
+	@echo "- make build-boot-debug"
+	@echo "    build bootloader with GDB debug support"
+	@echo "- make qemug-boot"
+	@echo "    launch unix-v6pp with Bootloader GDB debug"
+	@echo "- make gdb-boot"
+	@echo "    start GDB for Bootloader debugging"
 
 
 .PHONY: prepare
@@ -70,11 +76,21 @@ build-kernel: prepare
 	&& cmake -G"Ninja" ../../src -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && \
 	cmake --build . -- -j 1
 
+.PHONY: build-boot
+build-boot: prepare
+	mkdir -p target/objs/boot
+	nasm -f bin src/boot/boot.asm -o target/objs/boot/boot.bin
+
+.PHONY: build-boot-debug
+build-boot-debug: prepare
+	mkdir -p target/objs/boot
+	nasm -f bin src/boot/boot.asm -o target/objs/boot/boot_debug.bin -DGDB_DEBUG
 
 .PHONY: build-full
-build-full: prepare build-lib build-programs build-shell build-kernel
+build-full: prepare build-lib build-programs build-shell build-kernel build-boot
 
-
+.PHONY: build-full-debug
+build-full-debug: prepare build-lib build-programs build-shell build-kernel build-boot-debug
 
 .PHONY: deploy-full
 deploy-full: build-full
@@ -90,7 +106,19 @@ deploy-full: build-full
 	cd target/img-workspace && ./filescanner | ./fsedit c.img c
 	cp target/img-workspace/c.img target/
 
-
+.PHONY: deploy-full-debug
+deploy-full-debug: build-full-debug
+	mkdir -p target/img-workspace
+	mkdir -p target/img-workspace/programs/bin
+	mkdir -p target/img-workspace/programs/etc
+	cp target/objs/kernel.bin target/img-workspace/
+	cp target/objs/boot/boot_debug.bin target/img-workspace/boot.bin
+	cp target/objs/apps/* target/img-workspace/programs/bin/
+	cp target/objs/Shell.exe target/img-workspace/programs/
+	cp tools/unix-v6pp-filesystem-editor/bin/* target/img-workspace/
+	cp tools/unixv6pp_splash/v6pp_splash.bmp target/img-workspace/programs/etc/
+	cd target/img-workspace && ./filescanner | ./fsedit c.img c
+	cp target/img-workspace/c.img target/
 
 .PHONY: bochs
 bochs:
@@ -112,7 +140,7 @@ QEMU_DISK := -boot c -drive file=target/c.img,if=ide,index=0,media=disk,format=r
 # ´®¿Ú GDB µ÷ÊÔÅäÖÃ
 QEMU_SERIAL_GDB := -serial tcp::1234,server,nowait -gdb tcp::2005
 
-
+QEMU_BOOT_GDB := -serial tcp::1234,server,nowait -gdb tcp::1235 -S
 
 .PHONY: qemu-no-rebuild
 qemu-no-rebuild:
@@ -123,6 +151,9 @@ qemu-no-rebuild:
 qemug-no-rebuild:
 	$(QEMU) $(QEMU_DISK) $(QEMU_GDB)
 
+.PHONY: qemug-boot-no-rebuild
+qemug-boot-no-rebuild:
+	$(QEMU) $(QEMU_DISK) $(QEMU_BOOT_GDB)
 
 .PHONY: qemu
 qemu: deploy-full qemu-no-rebuild
@@ -131,6 +162,8 @@ qemu: deploy-full qemu-no-rebuild
 .PHONY: qemug
 qemug: deploy-full qemug-no-rebuild
 
+.PHONY: qemug-boot
+qemug-boot: deploy-full-debug qemug-boot-no-rebuild
 
 .PHONY: clean
 clean:
@@ -153,3 +186,24 @@ qemug-serial-no-rebuild:
 
 .PHONY: qemug-serial
 qemug-serial: deploy-full qemug-serial-no-rebuild
+
+.PHONY: gdb-boot
+gdb-boot:
+	@echo "=========================================="
+	@echo "Starting GDB for Bootloader debugging..."
+	@echo "Connect with: target remote localhost:1235"
+	@echo "Set breakpoint: break *0x7c00"
+	@echo "=========================================="
+	gdb -ex "target remote localhost:1235" -ex "set architecture i8086"
+
+.PHONY: debug-boot
+debug-boot:
+	@echo "Starting QEMU from disk in background..."
+	@make qemug-boot > /tmp/qemu.log 2>&1 & \
+	QEMU_PID=$$!; \
+	echo "QEMU PID: $$QEMU_PID"; \
+	echo "Waiting for QEMU to start..."; \
+	sleep 2; \
+	echo "Starting GDB..."; \
+	gdb -ex "target remote localhost:1235" -ex "set architecture i8086"; \
+	kill $$QEMU_PID 2>/dev/null || true

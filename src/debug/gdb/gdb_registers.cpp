@@ -19,6 +19,12 @@ void gdb_registers_init(void) {
 
 // 保存当前寄存器（使用汇编）
 void gdb_registers_save(void) {
+    // 添加诊断输出
+    Diagnose::Write("[DEBUG] gdb_registers_save called\n");
+    
+    // 简单的寄存器保存，避免危险的堆栈操作
+    uint32_t esp_val, ebp_val;
+    
     __asm__ volatile (
         "movl %%eax, %0\n\t"
         "movl %%ecx, %1\n\t"
@@ -27,34 +33,61 @@ void gdb_registers_save(void) {
         "movl %%esp, %4\n\t"
         "movl %%ebp, %5\n\t"
         "movl %%esi, %6\n\t"
-        "movl %%edi, %7\n\t"
-        "popl %%eax\n\t"
-        "movl %%eax, %8\n\t"
-        "pushfl\n\t"
-        "popl %%eax\n\t"
-        "movl %%eax, %9\n\t"
-        "movw %%cs, %%ax\n\t"
-        "movl %%eax, %10\n\t"
-        "movw %%ss, %%ax\n\t"
-        "movl %%eax, %11\n\t"
-        "movw %%ds, %%ax\n\t"
-        "movl %%eax, %12\n\t"
-        "movw %%es, %%ax\n\t"
-        "movl %%eax, %13\n\t"
-        "movw %%fs, %%ax\n\t"
-        "movl %%eax, %14\n\t"
-        "movw %%gs, %%ax\n\t"
-        "movl %%eax, %15"
+        "movl %%edi, %7"
         : "=m"(g_reg_context.eax), "=m"(g_reg_context.ecx),
           "=m"(g_reg_context.edx), "=m"(g_reg_context.ebx),
-          "=m"(g_reg_context.esp), "=m"(g_reg_context.ebp),
-          "=m"(g_reg_context.esi), "=m"(g_reg_context.edi),
-          "=m"(g_reg_context.eip), "=m"(g_reg_context.eflags),
-          "=m"(g_reg_context.cs), "=m"(g_reg_context.ss),
-          "=m"(g_reg_context.ds), "=m"(g_reg_context.es),
-          "=m"(g_reg_context.fs), "=m"(g_reg_context.gs)
-        : : "ax", "cx", "dx", "bx", "si", "di"
+          "=m"(esp_val), "=m"(ebp_val),
+          "=m"(g_reg_context.esi), "=m"(g_reg_context.edi)
+        : : "memory"
     );
+    
+    // 保存ESP和EBP
+    g_reg_context.esp = esp_val;
+    g_reg_context.ebp = ebp_val;
+    
+    // 安全地获取EIP：通过读取调用者的返回地址
+    // 注意：这假设函数是通过call指令调用的
+    // 对于异常处理，这不一定正确，但比pop安全
+    uint32_t eip_val = 0;
+    if (esp_val > 0x1000 && esp_val < 0xFFFFFFFF - 4) {
+        // 尝试读取返回地址（在ESP指向的位置）
+        eip_val = *((uint32_t*)esp_val);
+    }
+    g_reg_context.eip = eip_val;
+    
+    // 获取EFLAGS
+    uint32_t eflags_val;
+    __asm__ volatile (
+        "pushfl\n\t"
+        "popl %0"
+        : "=r"(eflags_val)
+        : : "memory"
+    );
+    g_reg_context.eflags = eflags_val;
+    
+    // 获取段寄存器
+    uint32_t cs_val, ss_val, ds_val, es_val, fs_val, gs_val;
+    __asm__ volatile (
+        "movw %%cs, %w0\n\t"
+        "movw %%ss, %w1\n\t"
+        "movw %%ds, %w2\n\t"
+        "movw %%es, %w3\n\t"
+        "movw %%fs, %w4\n\t"
+        "movw %%gs, %w5"
+        : "=r"(cs_val), "=r"(ss_val), "=r"(ds_val), 
+          "=r"(es_val), "=r"(fs_val), "=r"(gs_val)
+        : : "memory"
+    );
+    
+    // 只保存低16位（段选择子）
+    g_reg_context.cs = cs_val & 0xFFFF;
+    g_reg_context.ss = ss_val & 0xFFFF;
+    g_reg_context.ds = ds_val & 0xFFFF;
+    g_reg_context.es = es_val & 0xFFFF;
+    g_reg_context.fs = fs_val & 0xFFFF;
+    g_reg_context.gs = gs_val & 0xFFFF;
+    
+    Diagnose::Write("[DEBUG] gdb_registers_save completed\n");
 }
 
 // 恢复寄存器
@@ -158,4 +191,14 @@ void gdb_registers_to_string(char* buffer, int buffer_size) {
     }
 
     buffer[pos] = '\0';
+}
+
+// 设置单步执行标志（TF flag in EFLAGS）
+void gdb_set_single_step(void) {
+    g_reg_context.eflags |= 0x100;  // Set TF (Trap Flag)
+}
+
+// 清除单步执行标志
+void gdb_clear_single_step(void) {
+    g_reg_context.eflags &= ~0x100;  // Clear TF (Trap Flag)
 }

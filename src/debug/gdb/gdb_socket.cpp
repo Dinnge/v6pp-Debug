@@ -60,15 +60,25 @@ int gdb_socket_recv(Socket sock, char* buffer, int size) {
         return -1;
     }
 
-    // 直接从串口读取原始数据，让上层解析 GDB 协议
-    int len = serial_read(buffer, size);
+    // 使用串口的逐包解析器来接收一个完整的 GDB 包（串口层会负责 ACK/NACK）
+    int len = serial_recv_packet(buffer, size);
 
-    if (len > 0) {
-        Diagnose::Write("Socket: received ");
-        char c = '0' + len;
-        Diagnose::Write(&c);
-        Diagnose::Write(" bytes\n");
-    }
+    // if (len > 0) {
+    //     Diagnose::Write("Socket: received packet, ");
+    //     // 输出长度数字（简单实现）
+    //     char tmp[16];
+    //     int i = 0;
+    //     int v = len;
+    //     if (v == 0) tmp[i++] = '0';
+    //     else {
+    //         char rev[16]; int ri = 0;
+    //         while (v > 0 && ri < 15) { rev[ri++] = '0' + (v % 10); v /= 10; }
+    //         while (ri > 0) tmp[i++] = rev[--ri];
+    //     }
+    //     tmp[i] = '\0';
+    //     Diagnose::Write(tmp);
+    //     Diagnose::Write(" bytes\n");
+    // }
 
     return len;
 }
@@ -82,10 +92,10 @@ int gdb_socket_send(Socket sock, const char* data, int size) {
     // 直接发送数据
     int sent = serial_write(data, size);
 
-    Diagnose::Write("Socket: sent ");
-    // 简单的数字输出
-    Diagnose::Write("X");
-    Diagnose::Write(" bytes\n");
+    // Diagnose::Write("Socket: sent ");
+    // // 简单的数字输出
+    // Diagnose::Write("X");
+    // Diagnose::Write(" bytes\n");
 
     return sent;
 }

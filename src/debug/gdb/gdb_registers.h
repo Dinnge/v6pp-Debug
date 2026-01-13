@@ -61,4 +61,8 @@ uint32_t gdb_get_register_value(int reg_num);
 // 将寄存器转换为 GDB 格式字符串
 void gdb_registers_to_string(char* buffer, int buffer_size);
 
+// 单步执行控制
+void gdb_set_single_step(void);
+void gdb_clear_single_step(void);
+
 #endif // GDB_REGISTERS_H

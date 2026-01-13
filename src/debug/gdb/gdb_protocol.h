@@ -5,6 +5,7 @@
 #include "../debug.h"
 
 // GDB Ð­Òéº¯Êý
+int gdb_recv_packet(char* buffer, int buffer_size);
 void gdb_send_packet(char* data);
 void gdb_send_ok(void);
 void gdb_send_error(int code);

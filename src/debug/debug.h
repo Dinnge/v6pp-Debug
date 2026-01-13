@@ -22,10 +22,18 @@ typedef enum {
     GDB_CMD_VENDOR = 'v',
 } GDBCommand;
 
+// 调试模式枚举
+typedef enum
+{
+    DEBUG_MODE_CONTINUE = 0,
+    DEBUG_MODE_STEP = 1
+} DebugMode;
+
 typedef struct {
     int enabled;
     int listening;
     int connected;
+    int mode;
     char buffer[DEBUG_BUFFER_SIZE];
     int buffer_pos;
 } DebuggerState;
@@ -35,5 +43,7 @@ void debugger_main(void);
 void gdb_send_packet(char* data);
 void gdb_send_ok(void);
 void gdb_send_error(int code);
+// 调试器入口函数
+void debugger_enter(void);
 
 #endif

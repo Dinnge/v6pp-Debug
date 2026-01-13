@@ -1,7 +1,6 @@
 org 0x7c00
 
 
-;
 ; 实模式内存布局
 ;
 ; 起始地址    大小       用途
@@ -20,7 +19,6 @@ org 0x7c00
 ; 0xF0000    64KB-16B  系统BIOS
 ; 0xFFFF0    16B       系统 BIOS 入口地址
 ;
-
 
 ;section .code16
 ;[BITS 16]

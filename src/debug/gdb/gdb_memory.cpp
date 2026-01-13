@@ -1,28 +1,106 @@
-// GDB å†…å­˜ç®¡ç†å®žçŽ°
+// // GDB å†…å­˜ç®¡ç†å®žçŽ°
+
+// #include "gdb_memory.h"
+// #include "../../include/Video.h"
+
+// // åå…­è¿›åˆ¶å­—ç¬¦è¡„1¤71ï¿„1¤77
+// static const char* hex_chars = "0123456789abcdef";
+
+// // æ£¢ï¿½æŸ¥åœ°å¢ï¿½æ˜¯å¦å¯è®¿é—„1¤71ï¿„1¤77
+// int gdb_check_memory_access(uint32_t addr) {
+//     // ç®¢ï¿½å•æ£€æŸ¥ï¼šé¿å…è®¿é—®å†…æ ¸ç©ºé—´å¤–æˆ– NULL
+//     if (addr == 0) return 0;
+//     if (addr < 0x1000) return 0;  // ä½Žåœ°å¢ï¿½ä¿ç•™
+//     // å¯ä»¥æ·»åŠ æ›´å¤šæ£¢ï¿½æŸ„1¤71ï¿„1¤77...
+
+//     return 1;
+// }
+
+// // è¯»å–å†…å­˜
+// int gdb_read_memory(uint32_t addr, char* buffer, int len) {
+//     if (!gdb_check_memory_access(addr)) {
+//         return -1;
+//     }
+
+//     // ç›´æŽ¥è¯»å–å†…å­˜
+//     char* mem_ptr = (char*)addr;
+
+//     for (int i = 0; i < len; i++) {
+//         buffer[i] = mem_ptr[i];
+//     }
+
+//     return len;
+// }
+
+// // å†™å…¥å†…å­˜
+// int gdb_write_memory(uint32_t addr, const char* data, int len) {
+//     if (!gdb_check_memory_access(addr)) {
+//         return -1;
+//     }
+
+//     // ç›´æŽ¥å†™å…¥å†…å­˜
+//     char* mem_ptr = (char*)addr;
+
+//     for (int i = 0; i < len; i++) {
+//         mem_ptr[i] = data[i];
+//     }
+
+//     return len;
+// }
+// GDB ÄÚ´æ¹ÜÀíÊµÏÖ
+
+// GDB ÄÚ´æ¹ÜÀíÊµÏÖ
 
 #include "gdb_memory.h"
 #include "../../include/Video.h"
 
-// åå…­è¿›åˆ¶å­—ç¬¦è¡„1ï¿½7
+// Ê®Áù½øÖÆ×Ö·û±í
 static const char* hex_chars = "0123456789abcdef";
 
-// æ£¢ï¿½æŸ¥åœ°å¢ï¿½æ˜¯å¦å¯è®¿é—„1ï¿½7
+// ¼ì²éµØÖ·ÊÇ·ñ¿É·ÃÎÊ
 int gdb_check_memory_access(uint32_t addr) {
-    // ç®¢ï¿½å•æ£€æŸ¥ï¼šé¿å…è®¿é—®å†…æ ¸ç©ºé—´å¤–æˆ– NULL
+    // ¾Ü¾ø NULL Ö¸Õë
     if (addr == 0) return 0;
-    if (addr < 0x1000) return 0;  // ä½Žåœ°å¢ï¿½ä¿ç•™
-    // å¯ä»¥æ·»åŠ æ›´å¤šæ£¢ï¿½æŸ„1ï¿½7...
-
-    return 1;
+    
+    // ¾Ü¾ø¹ýµÍµØÖ·£¨¿ÉÄÜ±£Áô£©
+    if (addr < 0x1000) return 0;
+    
+    // ÔÊÐíÒýµ¼¼ÓÔØ³ÌÐòÇøÓò (0x7C00-0x7DFF)
+    if (addr >= 0x7C00 && addr < 0x7E00) return 1;
+    
+    // ÔÊÐí BIOS Êý¾ÝÇøÓò (0x9FC00-0x9FFFF)
+    if (addr >= 0x9FC00 && addr < 0xA0000) return 1;
+    
+    // ÄÚºË´Ó 1MB ¿ªÊ¼£¬¼ÙÉèÄÚºË´óÐ¡²»³¬¹ý 64MB
+    // ÔÊÐí·ÃÎÊÄÚºËµØÖ·¿Õ¼ä£º0x100000 µ½ 0x2000000 (32MB)
+    if (addr >= 0x100000 && addr < 0x2000000) return 1;
+    
+    // ¾Ü¾øÆäËûµØÖ·£¨°üÀ¨ÓÃ»§¿Õ¼ä£©
+    return 0;
 }
 
-// è¯»å–å†…å­˜
+// ¶ÁÈ¡ÄÚ´æ
 int gdb_read_memory(uint32_t addr, char* buffer, int len) {
     if (!gdb_check_memory_access(addr)) {
+        Diagnose::Write("[GDB] Memory access denied for address 0x");
+        // ¼òµ¥Êä³öµØÖ·£¨Ê®Áù½øÖÆ£©
+        char hex[9];
+        for (int i = 7; i >= 0; i--) {
+            int nibble = (addr >> (i * 4)) & 0xF;
+            hex[7 - i] = nibble < 10 ? '0' + nibble : 'a' + nibble - 10;
+        }
+        hex[8] = '\0';
+        Diagnose::Write(hex);
+        Diagnose::Write("\n");
         return -1;
     }
 
-    // ç›´æŽ¥è¯»å–å†…å­˜
+    // µ÷ÊÔ£ºÊä³öÕýÔÚ·ÃÎÊµÄµØÖ·£¨¼ò½à°æ£©
+    // ±ÜÃâ¹ý¶àÊä³ö£¬Ö»ÔÚ±ØÒªÊ±ÆôÓÃ
+    // Diagnose::Write("[GDB] Reading memory at 0x");
+    // ... (Ê¡ÂÔÏêÏ¸Êä³ö)
+
+    // Ö±½Ó¶ÁÈ¡ÄÚ´æ
     char* mem_ptr = (char*)addr;
 
     for (int i = 0; i < len; i++) {
@@ -32,13 +110,13 @@ int gdb_read_memory(uint32_t addr, char* buffer, int len) {
     return len;
 }
 
-// å†™å…¥å†…å­˜
+// Ð´ÈëÄÚ´æ
 int gdb_write_memory(uint32_t addr, const char* data, int len) {
     if (!gdb_check_memory_access(addr)) {
         return -1;
     }
 
-    // ç›´æŽ¥å†™å…¥å†…å­˜
+    // Ö±½ÓÐ´ÈëÄÚ´æ
     char* mem_ptr = (char*)addr;
 
     for (int i = 0; i < len; i++) {
@@ -47,3 +125,4 @@ int gdb_write_memory(uint32_t addr, const char* data, int len) {
 
     return len;
 }
+

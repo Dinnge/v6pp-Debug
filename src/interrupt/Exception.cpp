@@ -3,6 +3,7 @@
 #include "Utility.h"
 #include "Video.h"
 #include "Machine.h"
+#include "../debug/debug.h"
 
 /* 
  * 声明INT 0 - INT 31号异常在IDT中的入口函数(Entrance)
@@ -180,7 +181,24 @@ IMPLEMENT_EXCEPTION_HANDLER(DivideError, "Divide Exception!", User::SIGFPE)
 
 //调试异常(INT 1)
 IMPLEMENT_EXCEPTION_ENTRANCE(DebugEntrance, Debug)
-IMPLEMENT_EXCEPTION_HANDLER(Debug, "Debug Exception!", User::SIGTRAP)
+// IMPLEMENT_EXCEPTION_HANDLER(Debug, "Debug Exception!", User::SIGTRAP)
+void Exception::Debug(struct pt_regs* regs, struct pt_context* context) {
+    // 先进入调试器
+    debugger_enter();
+    
+    // 然后再处理信号（可选）
+    User& u = Kernel::Instance().GetUser();
+    Process* current = u.u_procp;
+    
+    if ((context->xcs & USER_MODE) == USER_MODE) {
+        current->PSignal(User::SIGTRAP);
+        if (current->IsSig())
+            current->PSig(context);
+    } else {
+        Utility::Panic("Breakpoint Exception!");
+    }
+}
+
 
 
 //NMI非屏蔽中断(INT 2)
@@ -190,7 +208,23 @@ IMPLEMENT_EXCEPTION_HANDLER(NMI, "Non-maskable Interrupt!", User::SIGNUL)
 
 //调试断点(INT 3)
 IMPLEMENT_EXCEPTION_ENTRANCE(BreakpointEntrance, Breakpoint)
-IMPLEMENT_EXCEPTION_HANDLER(Breakpoint, "Breakpoint Exception!", User::SIGTRAP)
+// IMPLEMENT_EXCEPTION_HANDLER(Breakpoint, "Breakpoint Exception!", User::SIGTRAP)
+void Exception::Breakpoint(struct pt_regs* regs, struct pt_context* context) {
+    // 先进入调试器
+    debugger_enter();
+    
+    // 然后再处理信号（可选）
+    User& u = Kernel::Instance().GetUser();
+    Process* current = u.u_procp;
+    
+    if ((context->xcs & USER_MODE) == USER_MODE) {
+        current->PSignal(User::SIGTRAP);
+        if (current->IsSig())
+            current->PSig(context);
+    } else {
+        Utility::Panic("Breakpoint Exception!");
+    }
+}
 
 
 //溢出(INT 4)

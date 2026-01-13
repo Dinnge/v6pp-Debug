@@ -28,11 +28,14 @@
 
 #include "libyrosstd/sys/types.h"
 #include "libyrosstd/string.h"
+#include "../debug/debug.h"
 
 // debug函数
 extern "C" void debug_start(void);
 extern "C" void debug_stop(void);
 extern "C" void debug_hook(void);
+// 调试器入口函数声明
+// extern "C" void debugger_enter(void);
 
 bool isInit = false;
 
@@ -210,6 +213,11 @@ int splash();
 
 extern "C" void next()
 {
+	// if (debugger_init() != 0) {
+    // Diagnose::Write("Failed to initialize debugger!\n");
+	// } else {
+	// 	Diagnose::Write("Debugger ready for GDB connection...\n");
+	// }
 	
 #ifdef USE_VESA
 	    intptr_t vesaModeInfoAddr = Machine::KERNEL_SPACE_START_ADDRESS + 0x7e00;
@@ -263,7 +271,13 @@ extern "C" void next()
 	Kernel::Instance().GetFileSystem().LoadSuperBlock();
 	Diagnose::Write("Unix V6++ FileSystem Loaded......OK\n");
 
-	Diagnose::Write("test \n");
+	// Diagnose::Write("test \n");
+
+    // ========================================
+    // 添加调试器测试代码 -2253217 DMY
+    // ========================================
+	// Diagnose::Write("\n[DEBUG] Entering debugger manually...\n");
+    // debugger_enter();
 
 	/*  初始化rootDirInode和用户当前工作目录，以便NameI()正常工作 */
 	FileManager& fileMgr = Kernel::Instance().GetFileManager();
@@ -293,9 +307,9 @@ extern "C" void next()
 	Diagnose::TraceOn();
 
 	// 启动 GDB 调试器
-	Diagnose::Write("\n===================================\n");
-	Diagnose::Write("Starting GDB Debugger...\n");
-	Diagnose::Write("===================================\n\n");
+	// Diagnose::Write("\n===================================\n");
+	// Diagnose::Write("Starting GDB Debugger...\n");
+	// Diagnose::Write("===================================\n\n");
 	
 	// 初始化并启动调试器（会阻塞在这里等待 GDB 连接）
 	debug_start();
@@ -338,6 +352,7 @@ extern "C" void next()
 extern "C" void kernelBridge() {  // called by sector2.asm
 	initBss();
 	callCtors();
+	// debug_start();
 	main0();
 	callDtors();
 }

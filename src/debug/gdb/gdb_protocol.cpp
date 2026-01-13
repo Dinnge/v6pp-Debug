@@ -3,6 +3,11 @@
 #include "gdb_registers.h"
 #include "gdb_memory.h"
 #include "gdb_breakpoints.h"
+#include "../../include/Video.h"
+#include "../debug.h"
+
+// 外部引用调试器状态
+extern DebuggerState g_debugger;
 
 // 自定义字符串函数（内核环境）
 static int strlen(const char* s) {
@@ -50,7 +55,32 @@ Socket gdb_get_client_socket(void) {
     return g_client_socket;
 }
 
-void gdb_send_packet(char* data) {
+int gdb_recv_packet(char* buffer, int buffer_size) {
+    if (g_client_socket == (Socket)-1) return -1;
+
+    // 串口层已经实现了对完整 RSP 包的解析（serial_recv_packet 返回包体长度，
+    // 不包含起始 '$' 与校验和），因此这里直接一次性从 socket 层读取完整包。
+    // 返回值语义：>0 包长度，0 表示当前无数据，<0 表示连接关闭或错误。
+    int recv_len = gdb_socket_recv(g_client_socket, buffer, buffer_size);
+    if (recv_len < 0) {
+        return -1; // 连接错误或已关闭
+    }
+    if (recv_len == 0) {
+        return 0; // 暂无完整包
+    }
+
+    // 确保字符串终止
+    if (recv_len >= buffer_size) recv_len = buffer_size - 1;
+    buffer[recv_len] = '\0';
+    // 日志接收到的包体（便于调试握手）
+    Diagnose::Write("RX: ");
+    Diagnose::Write(buffer);
+    Diagnose::Write("\n");
+    return recv_len;
+}
+
+void gdb_send_packet(char *data)
+{
     if (g_client_socket == (Socket)-1) return;
 
     char buffer[DEBUG_BUFFER_SIZE];
@@ -65,8 +95,10 @@ void gdb_send_packet(char* data) {
     // 构造数据包: $数据#校验和
     int pos = 0;
     buffer[pos++] = '$';
-    strcpy(buffer + pos, data);
-    pos += len;
+    // 直接复制 data 中的字节（不要写入额外的 '\0' 字节到数据部分）
+    for (int i = 0; i < len; i++) {
+        buffer[pos++] = data[i];
+    }
     buffer[pos++] = '#';
 
     // 转换校验和为十六进制
@@ -77,7 +109,10 @@ void gdb_send_packet(char* data) {
     buffer[pos++] = hex[1];
     buffer[pos] = '\0';
 
-    // 发送到 GDB
+    // 发送到 GDB，先记录要发送的原始包内容以便调试
+    Diagnose::Write("TX: ");
+    Diagnose::Write(buffer);
+    Diagnose::Write("\n");
     gdb_socket_send(g_client_socket, buffer, pos);
 }
 
@@ -116,13 +151,17 @@ GDBCommand gdb_parse_command(char* packet) {
 }
 
 // 处理继续执行命令
-void gdb_handle_continue(char* p) {
+void gdb_handle_continue(char *p) {
     gdb_send_ok();
+    g_debugger.mode = DEBUG_MODE_CONTINUE;
+    Diagnose::Write("Continuing execution...\n");
 }
 
 // 处理单步执行命令
-void gdb_handle_step(char* p) {
+void gdb_handle_step(char *p) {
     gdb_send_ok();
+    g_debugger.mode = DEBUG_MODE_STEP;
+    Diagnose::Write("Stepping...\n");
 }
 
 // 处理读取寄存器命令
@@ -387,7 +426,8 @@ void gdb_handle_remove_breakpoint(char* p) {
 void gdb_handle_query(char* p) {
     // qSupported - GDB 特性查询
     if (p[0] == 'q' && p[1] == 'S') {
-        gdb_send_packet("PacketSize=1000;qRelocInsn+;multiprocess+");
+        // 返回支持的特性，明确排除未知项
+        gdb_send_packet((char*)"PacketSize=1000;qRelocInsn+;multiprocess+;xmlRegisters-;timeout-;QStartNoAckMode-");
         return;
     }
 

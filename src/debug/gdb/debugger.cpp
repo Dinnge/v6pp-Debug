@@ -1,10 +1,10 @@
-// 调试器集成模块 - 连接到内核
+// 调试器集成模坄1�7 - 连接到内栄1�7
 
 #include "../debug.h"
 #include "../../include/Kernel.h"
 #include "../../include/Video.h"
 
-// 调试器启动入口
+// 调试器启动入叄1�7
 extern "C" void debug_start(void) {
     Diagnose::Write("\n===================================\n");
     Diagnose::Write("V6++ Debugger Starting...\n");
@@ -20,17 +20,17 @@ extern "C" void debug_start(void) {
     debugger_main();
 }
 
-// 调试器停止入口
+// 调试器停止入叄1�7
 extern "C" void debug_stop(void) {
     Diagnose::Write("\n===================================\n");
     Diagnose::Write("V6++ Debugger Stopped\n");
     Diagnose::Write("===================================\n");
 }
 
-// 调试器钩子 - 从异常处理程序调用
+// 调试器钩孄1�7 - 从异常处理程序调甄1�7
 extern "C" void debug_hook(void) {
     Diagnose::Write("Debug hook triggered\n");
-    // TODO: 保存上下文
-    // TODO: 检查断点
-    // TODO: 与 GDB 通信
+    // TODO: 保存上下斄1�7
+    // TODO: 棢�查断炄1�7
+    // TODO: 丄1�7 GDB 通信
 }

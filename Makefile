@@ -357,7 +357,7 @@ QEMU_DISK := -boot c -drive file=target/c.img,if=ide,index=0,media=disk,format=r
 QEMU_SERIAL_GDB := -chardev socket,id=serial0,host=0.0.0.0,port=1234,server=on,wait=off -device isa-serial,chardev=serial0
 
 # 串口 GDB 调试配置（输出到文件）
-QEMU_SERIAL_GDB_LOG := -chardev socket,id=serial0,host=0.0.0.0,port=1234,server=on,wait=off -device isa-serial,chardev=serial0 -serial file:target/serial.log
+QEMU_SERIAL_GDB_LOG := -chardev socket,id=serial0,host=0.0.0.0,port=1234,server=on,wait=off -device isa-serial,chardev=serial0 -chardev file,id=serial1,path=target/serial.log -device isa-serial,chardev=serial1
 
 # QEMU 内置 GDB stub 配置（用于调试内核）
 QEMU_BUILTIN_GDB := -gdb tcp::2005 -S
@@ -425,6 +425,7 @@ qemug-builtin: deploy-full qemug-builtin-no-rebuild
 # 串口 GDB 调试带日志输出
 .PHONY: qemug-serial-log-no-rebuild
 qemug-serial-log-no-rebuild:
+	mkdir -p target
 	$(QEMU) $(QEMU_DISK) $(QEMU_SERIAL_GDB_LOG)
 
 .PHONY: qemug-serial-log

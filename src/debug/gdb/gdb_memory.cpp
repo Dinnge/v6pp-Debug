@@ -74,7 +74,10 @@ int gdb_check_memory_access(uint32_t addr) {
     // 内核从 1MB 开始，假设内核大小不超过 64MB
     // 允许访问内核地址空间：0x100000 到 0x2000000 (32MB)
     if (addr >= 0x100000 && addr < 0x2000000) return 1;
-    
+
+    // 允许内核虚拟地址空间 (0xC0000000 以上)
+    // 当前分页映射了 0xC0000000 - 0xC03FFFFF (4MB)
+    if (addr >= 0xC0000000) return 1;
     // 拒绝其他地址（包括用户空间）
     return 0;
 }

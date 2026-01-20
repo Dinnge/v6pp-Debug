@@ -106,60 +106,60 @@ void debugger_main(void) {
     
     // 主循环
     while (g_debugger.enabled) {
-        debug_cycle++;
+        // debug_cycle++;
         
-        // 减少调试输出频率，每100000次循环输出一次，避免输出过快
-        if (debug_cycle % 100000 == 0) {
-            int readable = serial_readable();
-            // 手动构建字符串以避免交错
-            char status_msg[128];
-            int pos = 0;
+        // // 减少调试输出频率，每100000次循环输出一次，避免输出过快
+        // if (debug_cycle % 100000 == 0) {
+        //     int readable = serial_readable();
+        //     // 手动构建字符串以避免交错
+        //     char status_msg[128];
+        //     int pos = 0;
             
-            // 复制 "[STATUS] Cycle="
-            const char* prefix = "[STATUS] Cycle=";
-            while (*prefix) status_msg[pos++] = *prefix++;
+        //     // 复制 "[STATUS] Cycle="
+        //     const char* prefix = "[STATUS] Cycle=";
+        //     while (*prefix) status_msg[pos++] = *prefix++;
             
-            // 添加周期数
-            if (debug_cycle == 100000) {
-                const char* num = "100000";
-                while (*num) status_msg[pos++] = *num++;
-            } else if (debug_cycle == 200000) {
-                const char* num = "200000";
-                while (*num) status_msg[pos++] = *num++;
-            } else {
-                const char* active = "active";
-                while (*active) status_msg[pos++] = *active++;
-            }
+        //     // 添加周期数
+        //     if (debug_cycle == 100000) {
+        //         const char* num = "100000";
+        //         while (*num) status_msg[pos++] = *num++;
+        //     } else if (debug_cycle == 200000) {
+        //         const char* num = "200000";
+        //         while (*num) status_msg[pos++] = *num++;
+        //     } else {
+        //         const char* active = "active";
+        //         while (*active) status_msg[pos++] = *active++;
+        //     }
             
-            // 添加连接状态
-            const char* conn = ", Connected=";
-            while (*conn) status_msg[pos++] = *conn++;
-            if (g_debugger.connected) {
-                status_msg[pos++] = 'Y';
-                status_msg[pos++] = 'e';
-                status_msg[pos++] = 's';
-            } else {
-                status_msg[pos++] = 'N';
-                status_msg[pos++] = 'o';
-            }
+        //     // 添加连接状态
+        //     const char* conn = ", Connected=";
+        //     while (*conn) status_msg[pos++] = *conn++;
+        //     if (g_debugger.connected) {
+        //         status_msg[pos++] = 'Y';
+        //         status_msg[pos++] = 'e';
+        //         status_msg[pos++] = 's';
+        //     } else {
+        //         status_msg[pos++] = 'N';
+        //         status_msg[pos++] = 'o';
+        //     }
             
-            // 添加可读状态
-            const char* read = ", Readable=";
-            while (*read) status_msg[pos++] = *read++;
-            if (readable > 0) {
-                status_msg[pos++] = 'Y';
-                status_msg[pos++] = 'e';
-                status_msg[pos++] = 's';
-            } else {
-                status_msg[pos++] = 'N';
-                status_msg[pos++] = 'o';
-            }
+        //     // 添加可读状态
+        //     const char* read = ", Readable=";
+        //     while (*read) status_msg[pos++] = *read++;
+        //     if (readable > 0) {
+        //         status_msg[pos++] = 'Y';
+        //         status_msg[pos++] = 'e';
+        //         status_msg[pos++] = 's';
+        //     } else {
+        //         status_msg[pos++] = 'N';
+        //         status_msg[pos++] = 'o';
+        //     }
             
-            status_msg[pos++] = '\n';
-            status_msg[pos] = '\0';
+        //     status_msg[pos++] = '\n';
+        //     status_msg[pos] = '\0';
             
-            Diagnose::Write(status_msg);
-        }
+        //     Diagnose::Write(status_msg);
+        // }
         
         // 阶段1: 等待GDB连接（接收第一个有效数据包）
         if (!g_debugger.connected) {

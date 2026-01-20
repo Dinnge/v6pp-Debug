@@ -783,49 +783,27 @@ void gdb_handle_step(char* p) {
     gdb_send_ok();
 }
 
-// 处理读取寄存器命令
-// void gdb_handle_read_registers(char* p) {
-//     Diagnose::Write("[DEBUG] gdb_handle_read_registers called\n");
-    
-//     // Diagnose::Write("[DEBUG] Sending default register values\n");
-//     uint32_t regs[16] = {0};
-    
-//     // 设置寄存器值（使用内核空间合法地址）
-//     regs[4] = 0xC0000000;  // ESP: 内核栈顶
-//     regs[8] = 0x0100fff0;  // EIP: 内核入口点（根据文档，内核加载到0x100000）
-//     regs[9] = 0x00000002;  // EFLAGS
-//     regs[10] = 0x0008;     // CS: 内核代码段
-//     regs[11] = 0x0010;     // SS: 内核数据段
-//     regs[12] = 0x0010;     // DS
-//     regs[13] = 0x0010;     // ES
-//     regs[14] = 0x0010;     // FS
-//     regs[15] = 0x0010;     // GS
-    
-//     // 手动转换十六进制
-//     char response[129];
-//     char hex_chars[] = "0123456789abcdef";
-    
-//     for (int i = 0; i < 16; i++) {
-//         uint32_t value = regs[i];
-//         int base = i * 8;
-        
-//         // 每个字节转换为2个十六进制字符
-//         for (int j = 7; j >= 0; j--) {
-//             int nibble = (value >> (j * 4)) & 0xF;
-//             response[base + (7 - j)] = hex_chars[nibble];
-//         }
-//     }
-//     response[128] = '\0';  // 结束符
-    
-//     gdb_send_packet(response);
-// }
-
 void gdb_handle_read_registers(char* p) {
-    Diagnose::Write("[DEBUG] Reading registers with safe assembly\n");
+
+    if (p == NULL || p[0] == '\0') {
+        Diagnose::Write("[GDB] 警告: 接收到空指针或空数据包，返回默认寄存器值\n");
+        
+        // 返回默认寄存器值（全零）
+        char default_regs[129];
+        for (int i = 0; i < 128; i++) {
+            default_regs[i] = '0';
+        }
+        default_regs[128] = '\0';
+        
+        gdb_send_packet(default_regs);
+        return;
+    }
+
+    Diagnose::Write("[DEBUG] Reading registers with BIG-ENDIAN format\n");
     
     uint32_t regs[16] = {0};
     
-    // 使用与项目其他部分一致的汇编风格
+    // 读取真实寄存器值（小端序）
     __asm__ __volatile__ (
         "movl %%eax, %0\n\t"
         "movl %%ecx, %1\n\t" 
@@ -870,73 +848,56 @@ void gdb_handle_read_registers(char* p) {
     __asm__ __volatile__ ("movw %%gs, %0" : "=r"(temp16));
     regs[15] = temp16;
     
-    // 转换为十六进制
+    // 调试输出：显示关键寄存器转换前后的值
+    char le_display[9], be_display[9];
+    host32_to_gdb_hex(regs[8], be_display);  // 使用您现有的函数
+    Diagnose::Write("[DEBUG] EIP min=0x%08x →  max=0x%s\n", regs[8], be_display);
+    
+    // host32_to_gdb_hex(regs[4], be_display);
+    // Diagnose::Write("[DEBUG] ESP转换: 小端序=0x%08x → 大端序=0x%s\n", regs[4], be_display);
+    
+    // host32_to_gdb_hex(regs[0], be_display);
+    // Diagnose::Write("[DEBUG] EAX转换: 小端序=0x%08x → 大端序=0x%s\n", regs[0], be_display);
+    
+    // 关键修改：将所有寄存器值转换为大端序格式发送给GDB
     char response[129];
-    const char hex[] = "0123456789abcdef";
     
     for (int i = 0; i < 16; i++) {
-        uint32_t val = regs[i];
-        for (int j = 0; j < 8; j++) {
-            int pos = i * 8 + j;
-            int shift = 28 - j * 4;
-            response[pos] = hex[(val >> shift) & 0xF];
-        }
+        // 使用您现有的函数：小端序主机值 → 大端序十六进制字符串
+        host32_to_gdb_hex(regs[i], response + i * 8);
     }
     response[128] = '\0';
     
     gdb_send_packet(response);
 }
 
-// void gdb_handle_read_registers(char* p) {
-//     Diagnose::Write("[DEBUG] gdb_handle_read_registers called\n");
-    
-//     // 保存当前寄存器值
-//     gdb_registers_save();
-    
-//     // 转换为 GDB 格式字符串
-//     char reg_str[512];
-//     gdb_registers_to_string(reg_str, sizeof(reg_str));
-    
-//     Diagnose::Write("[DEBUG] Sending register values\n");
-//     // 发送给 GDB
-//     gdb_send_packet(reg_str);
-// }
-
-// 处理写入寄存器命令
+// 处理写入寄存器命令 需要将大端转为小端
 void gdb_handle_write_registers(char* p) {
-    // 解析寄存器数据（GDB 格式：GXX...）
-    // 跳过 'G' 前缀
     if (p[0] != 'G') {
         gdb_send_error(0);
         return;
     }
 
     char* data = p + 1;
-    uint32_t value = 0;
-
-    // 解析十六进制字符串
-    int pos = 0;
-    for (int i = 0; i < GDB_REG_COUNT; i++) {
-        value = 0;
-        for (int j = 0; j < 4; j++) {
-            char c1 = data[pos++];
-            char c2 = data[pos++];
-            uint8_t byte = 0;
-
-            if (c1 >= '0' && c1 <= '9') byte |= (c1 - '0') << 4;
-            else if (c1 >= 'a' && c1 <= 'f') byte |= (c1 - 'a' + 10) << 4;
-            else if (c1 >= 'A' && c1 <= 'F') byte |= (c1 - 'A' + 10) << 4;
-
-            if (c2 >= '0' && c2 <= '9') byte |= (c2 - '0');
-            else if (c2 >= 'a' && c2 <= 'f') byte |= (c2 - 'a' + 10);
-            else if (c2 >= 'A' && c2 <= 'F') byte |= (c2 - 'A' + 10);
-
-            value |= byte << (j * 8);
+    
+    for (int reg_index = 0; reg_index < GDB_REG_COUNT; reg_index++) {
+        // 提取8字符十六进制
+        char reg_hex[9] = {0};
+        for (int i = 0; i < 8; i++) {
+            reg_hex[i] = data[reg_index * 8 + i];
         }
-
-        gdb_set_register(i, value);
+        reg_hex[8] = '\0';
+        
+        // 关键修改：大端序→小端序转换
+        uint32_t reg_value = gdb_hex_to_host32(reg_hex);
+        
+        // 设置寄存器
+        gdb_set_register(reg_index, reg_value);
+        //     gdb_send_error(0);
+        //     return;
+        // }
     }
-
+    
     gdb_send_ok();
 }
 
@@ -1002,18 +963,46 @@ void gdb_handle_write_registers(char* p) {
 //     gdb_send_packet(hex_buffer);
 // }
 
-void gdb_handle_read_memory(char* packet) {
-    Diagnose::Write("[GDB] 内存读取: %s\n", packet);
+// 安全的内存读取函数
+int gdb_safe_read_memory(uint32_t addr, char* buffer, uint32_t len) {
+    // 安全检查1：只允许内核空间访问
+    if (addr < 0xC0000000) {
+        Diagnose::Write("[GDB] 内存读取失败：拒绝用户空间访问 0x%08x\n", addr);
+        return -1;
+    }
     
+    // 安全检查2：边界检查
+    if (len == 0 || len > DEBUG_BUFFER_SIZE) {
+        Diagnose::Write("[GDB] 内存读取失败：无效长度 %u\n", len);
+        return -1;
+    }
+    
+    // 安全检查3：地址范围检查
+    if (addr + len < addr) {  // 检查溢出
+        Diagnose::Write("[GDB] 内存读取失败：地址溢出 0x%08x + %u\n", addr, len);
+        return -1;
+    }
+    
+    Diagnose::Write("[GDB] 安全读取: 地址=0x%08x, 长度=%u\n", addr, len);
+    
+    // 直接内存读取
+    for (uint32_t i = 0; i < len; i++) {
+        char* src = (char*)(addr + i);
+        buffer[i] = *src;
+    }
+    
+    return 0;
+}
+
+void gdb_handle_read_memory(char* packet) {
     // 格式: maddr,length
     char* comma = gdb_strchr(packet, ',');
     if (!comma) {
-        Diagnose::Write("[GDB] 无效格式: 缺少逗号\n");
         gdb_send_packet("E01");
         return;
     }
     
-    // 提取地址部分
+    // 提取地址
     int addr_len = comma - (packet + 1);
     char addr_hex[9] = {0};
     for (int i = 0; i < addr_len && i < 8; i++) {
@@ -1021,14 +1010,12 @@ void gdb_handle_read_memory(char* packet) {
     }
     addr_hex[addr_len] = '\0';
     
-    // 转换为小端序主机地址
+    // 字节序转换
     uint32_t host_addr = gdb_hex_to_host32(addr_hex);
-    
+    uint32_t addr = hex_str_to_uint(addr_hex);
     // 解析长度
     char* len_str = comma + 1;
     uint32_t len = hex_str_to_uint(len_str);
-    
-    Diagnose::Write("[GDB] 解析: 地址=0x%08x, 长度=%u\n", host_addr, len);
     
     // 限制长度
     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
@@ -1037,19 +1024,18 @@ void gdb_handle_read_memory(char* packet) {
     
     // 安全检查
     if (host_addr < 0xC0000000) {
-        Diagnose::Write("[GDB] 拒绝用户空间: 0x%08x\n", host_addr);
         gdb_send_packet("E00");
         return;
     }
     
-    // 读取内存
+    // 内存读取
     static char mem_buffer[DEBUG_BUFFER_SIZE];
-    // if (gdb_safe_read_memory(host_addr, mem_buffer, len) < 0) {
-    //     gdb_send_packet("E02");
-    //     return;
-    // }
+    if (gdb_safe_read_memory(addr, mem_buffer, len) < 0) {
+        gdb_send_packet("E02");
+        return;
+    }
     
-    // 转换为十六进制字符串
+    // 转换为十六进制
     static char hex_buffer[DEBUG_BUFFER_SIZE * 2 + 1];
     const char hex_chars[] = "0123456789abcdef";
     
@@ -1060,7 +1046,6 @@ void gdb_handle_read_memory(char* packet) {
     }
     hex_buffer[len*2] = '\0';
     
-    Diagnose::Write("[GDB] 读取成功: 地址=0x%08x\n", host_addr);
     gdb_send_packet(hex_buffer);
 }
 
@@ -1134,25 +1119,128 @@ void gdb_handle_read_memory(char* packet) {
 //     gdb_send_ok();
 // }
 
-void gdb_handle_write_memory(char* packet) {
-    Diagnose::Write("[GDB] 内存写入: %s\n", packet);
+int gdb_safe_write_memory(uint32_t addr, const char* data, uint32_t len) {
+    // 安全检查1：只允许内核空间访问
+    if (addr < 0xC0000000) {
+        return -1;
+    }
     
+    // 安全检查2：边界检查
+    if (len == 0 || len > DEBUG_BUFFER_SIZE) {
+        return -1;
+    }
+    
+    // 安全检查3：地址范围检查
+    if (addr + len < addr) {  // 检查溢出
+        return -1;
+    }
+    
+    // 直接内存写入
+    for (uint32_t i = 0; i < len; i++) {
+        char* dest = (char*)(addr + i);
+        *dest = data[i];
+    }
+    
+    return 0;
+}
+
+// void gdb_handle_write_memory(char* packet) {
+//     Diagnose::Write("[GDB] 内存写入: %s\n", packet);
+    
+//     // 格式: Maddr,length:data
+//     char* comma = gdb_strchr(packet, ',');
+//     if (!comma) {
+//         Diagnose::Write("[GDB] 无效格式: 缺少逗号\n");
+//         gdb_send_packet("E01");
+//         return;
+//     }
+    
+//     char* colon = gdb_strchr(comma, ':');
+//     if (!colon) {
+//         Diagnose::Write("[GDB] 无效格式: 缺少冒号\n");
+//         gdb_send_packet("E01");
+//         return;
+//     }
+    
+//     // 提取地址
+//     int addr_len = comma - (packet + 1);
+//     char addr_hex[9] = {0};
+//     for (int i = 0; i < addr_len && i < 8; i++) {
+//         addr_hex[i] = packet[1 + i];
+//     }
+//     addr_hex[addr_len] = '\0';
+    
+//     uint32_t host_addr = gdb_hex_to_host32(addr_hex);
+    
+//     // 提取长度
+//     int len_len = colon - (comma + 1);
+//     char len_hex[9] = {0};
+//     for (int i = 0; i < len_len && i < 8; i++) {
+//         len_hex[i] = comma[1 + i];
+//     }
+//     len_hex[len_len] = '\0';
+    
+//     uint32_t len = hex_str_to_uint(len_hex);
+    
+//     // 提取数据
+//     char* data_str = colon + 1;
+//     int data_len = gdb_strlen(data_str);
+    
+//     // 验证数据长度
+//     if (data_len != len * 2) {
+//         Diagnose::Write("[GDB] 数据长度不匹配: 期望=%u, 实际=%u\n", len * 2, data_len);
+//         gdb_send_packet("E03");
+//         return;
+//     }
+    
+//     Diagnose::Write("[GDB] 解析: 地址=0x%08x, 长度=%u\n", host_addr, len);
+    
+//     // 限制长度
+//     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
+//         len = DEBUG_BUFFER_SIZE;
+//     }
+    
+//     // 安全检查
+//     if (host_addr < 0xC0000000) {
+//         Diagnose::Write("[GDB] 拒绝用户空间写入: 0x%08x\n", host_addr);
+//         gdb_send_packet("E00");
+//         return;
+//     }
+    
+//     // 解析十六进制数据
+//     static char data_buffer[DEBUG_BUFFER_SIZE];
+//     for (uint32_t i = 0; i < len; i++) {
+//         char c1 = data_str[i*2];
+//         char c2 = data_str[i*2 + 1];
+        
+//         uint8_t byte = (hex_char_to_value(c1) << 4) | hex_char_to_value(c2);
+//         data_buffer[i] = (char)byte;
+//     }
+    
+//     // 写入内存
+//     // if (gdb_safe_write_memory(host_addr, data_buffer, len) < 0) {
+//     //     gdb_send_packet("E02");
+//     //     return;
+//     // }
+    
+//     Diagnose::Write("[GDB] 写入成功: 地址=0x%08x\n", host_addr);
+//     gdb_send_packet("OK");
+// }
+void gdb_handle_write_memory(char* packet) {
     // 格式: Maddr,length:data
     char* comma = gdb_strchr(packet, ',');
     if (!comma) {
-        Diagnose::Write("[GDB] 无效格式: 缺少逗号\n");
         gdb_send_packet("E01");
         return;
     }
     
     char* colon = gdb_strchr(comma, ':');
     if (!colon) {
-        Diagnose::Write("[GDB] 无效格式: 缺少冒号\n");
         gdb_send_packet("E01");
         return;
     }
     
-    // 提取地址
+    // 提取地址 - 关键修改：直接解析，不进行字节序转换
     int addr_len = comma - (packet + 1);
     char addr_hex[9] = {0};
     for (int i = 0; i < addr_len && i < 8; i++) {
@@ -1160,7 +1248,8 @@ void gdb_handle_write_memory(char* packet) {
     }
     addr_hex[addr_len] = '\0';
     
-    uint32_t host_addr = gdb_hex_to_host32(addr_hex);
+    // 关键修改：直接解析十六进制字符串为uint32_t
+    uint32_t host_addr = hex_str_to_uint(addr_hex);
     
     // 提取长度
     int len_len = colon - (comma + 1);
@@ -1178,12 +1267,9 @@ void gdb_handle_write_memory(char* packet) {
     
     // 验证数据长度
     if (data_len != len * 2) {
-        Diagnose::Write("[GDB] 数据长度不匹配: 期望=%u, 实际=%u\n", len * 2, data_len);
         gdb_send_packet("E03");
         return;
     }
-    
-    Diagnose::Write("[GDB] 解析: 地址=0x%08x, 长度=%u\n", host_addr, len);
     
     // 限制长度
     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
@@ -1192,7 +1278,6 @@ void gdb_handle_write_memory(char* packet) {
     
     // 安全检查
     if (host_addr < 0xC0000000) {
-        Diagnose::Write("[GDB] 拒绝用户空间写入: 0x%08x\n", host_addr);
         gdb_send_packet("E00");
         return;
     }
@@ -1207,17 +1292,53 @@ void gdb_handle_write_memory(char* packet) {
         data_buffer[i] = (char)byte;
     }
     
-    // 写入内存
-    // if (gdb_safe_write_memory(host_addr, data_buffer, len) < 0) {
-    //     gdb_send_packet("E02");
-    //     return;
-    // }
+    // 关键修改：取消注释，启用内存写入
+    if (gdb_safe_write_memory(host_addr, data_buffer, len) < 0) {
+        gdb_send_packet("E02");
+        return;
+    }
     
-    Diagnose::Write("[GDB] 写入成功: 地址=0x%08x\n", host_addr);
     gdb_send_packet("OK");
 }
 
+
 // 处理设置断点命令（格式：Z类型,地址,长度）
+// void gdb_handle_set_breakpoint(char* p) {
+//     if (p[0] != 'Z') {
+//         gdb_send_error(0);
+//         return;
+//     }
+
+//     char* ptr = p + 1;
+//     GDBBreakpointType type;
+//     uint32_t addr;
+
+//     // 解析类型
+//     type = (GDBBreakpointType)(*ptr++ - '0');
+
+//     // 跳过 ','
+//     if (*ptr == ',') ptr++;
+
+//     // 解析地址
+//     addr = 0;
+//     while (*ptr != ',' && *ptr != '\0') {
+//         char c = *ptr++;
+//         if (c >= '0' && c <= '9') {
+//             addr = (addr << 4) | (c - '0');
+//         } else if (c >= 'a' && c <= 'f') {
+//             addr = (addr << 4) | (c - 'a' + 10);
+//         } else if (c >= 'A' && c <= 'F') {
+//             addr = (addr << 4) | (c - 'A' + 10);
+//         }
+//     }
+
+//     // 添加断点
+//     if (gdb_add_breakpoint(addr, type) != 0) {
+//         gdb_send_error(1);
+//     } else {
+//         gdb_send_ok();
+//     }
+// }
 void gdb_handle_set_breakpoint(char* p) {
     if (p[0] != 'Z') {
         gdb_send_error(0);
@@ -1234,17 +1355,22 @@ void gdb_handle_set_breakpoint(char* p) {
     // 跳过 ','
     if (*ptr == ',') ptr++;
 
-    // 解析地址
-    addr = 0;
-    while (*ptr != ',' && *ptr != '\0') {
-        char c = *ptr++;
-        if (c >= '0' && c <= '9') {
-            addr = (addr << 4) | (c - '0');
-        } else if (c >= 'a' && c <= 'f') {
-            addr = (addr << 4) | (c - 'a' + 10);
-        } else if (c >= 'A' && c <= 'F') {
-            addr = (addr << 4) | (c - 'A' + 10);
-        }
+    // 关键修改：提取十六进制字符串，直接解析（不进行字节序转换）
+    char addr_hex[9] = {0};
+    int addr_len = 0;
+    
+    while (*ptr != ',' && *ptr != '\0' && addr_len < 8) {
+        addr_hex[addr_len++] = *ptr++;
+    }
+    addr_hex[addr_len] = '\0';
+    
+    // 直接解析为uint32_t（不进行字节序转换）
+    addr = hex_str_to_uint(addr_hex);
+    
+    // 安全检查：确保是内核空间地址
+    if (addr < 0xC0000000) {
+        gdb_send_error(0);  // 拒绝用户空间断点
+        return;
     }
 
     // 添加断点
@@ -1256,6 +1382,42 @@ void gdb_handle_set_breakpoint(char* p) {
 }
 
 // 处理移除断点命令（格式：z类型,地址,长度）
+// void gdb_handle_remove_breakpoint(char* p) {
+//     if (p[0] != 'z') {
+//         gdb_send_error(0);
+//         return;
+//     }
+
+//     char* ptr = p + 1;
+//     GDBBreakpointType type;
+//     uint32_t addr;
+
+//     // 解析类型
+//     type = (GDBBreakpointType)(*ptr++ - '0');
+
+//     // 跳过 ','
+//     if (*ptr == ',') ptr++;
+
+//     // 解析地址
+//     addr = 0;
+//     while (*ptr != ',' && *ptr != '\0') {
+//         char c = *ptr++;
+//         if (c >= '0' && c <= '9') {
+//             addr = (addr << 4) | (c - '0');
+//         } else if (c >= 'a' && c <= 'f') {
+//             addr = (addr << 4) | (c - 'a' + 10);
+//         } else if (c >= 'A' && c <= 'F') {
+//             addr = (addr << 4) | (c - 'A' + 10);
+//         }
+//     }
+
+//     // 移除断点
+//     if (gdb_remove_breakpoint(addr) != 0) {
+//         gdb_send_error(1);
+//     } else {
+//         gdb_send_ok();
+//     }
+// }
 void gdb_handle_remove_breakpoint(char* p) {
     if (p[0] != 'z') {
         gdb_send_error(0);
@@ -1263,26 +1425,26 @@ void gdb_handle_remove_breakpoint(char* p) {
     }
 
     char* ptr = p + 1;
-    GDBBreakpointType type;
-    uint32_t addr;
-
-    // 解析类型
-    type = (GDBBreakpointType)(*ptr++ - '0');
-
-    // 跳过 ','
+    GDBBreakpointType type = (GDBBreakpointType)(*ptr++ - '0');
+    
     if (*ptr == ',') ptr++;
-
-    // 解析地址
-    addr = 0;
-    while (*ptr != ',' && *ptr != '\0') {
-        char c = *ptr++;
-        if (c >= '0' && c <= '9') {
-            addr = (addr << 4) | (c - '0');
-        } else if (c >= 'a' && c <= 'f') {
-            addr = (addr << 4) | (c - 'a' + 10);
-        } else if (c >= 'A' && c <= 'F') {
-            addr = (addr << 4) | (c - 'A' + 10);
-        }
+    
+    // 提取地址字符串
+    char addr_hex[9] = {0};
+    int addr_len = 0;
+    
+    while (*ptr != ',' && *ptr != '\0' && addr_len < 8) {
+        addr_hex[addr_len++] = *ptr++;
+    }
+    addr_hex[addr_len] = '\0';
+    
+    // 直接解析地址（不进行字节序转换）
+    uint32_t addr = hex_str_to_uint(addr_hex);
+    
+    // 安全检查
+    if (addr < 0xC0000000) {
+        gdb_send_error(0);
+        return;
     }
 
     // 移除断点
@@ -1293,74 +1455,6 @@ void gdb_handle_remove_breakpoint(char* p) {
     }
 }
 
-// 处理查询命令
-// void gdb_handle_query(char* p) {
-//     // 调试日志：收到查询包（使用原子输出）
-//     char query_msg[DEBUG_BUFFER_SIZE + 100];
-//     int pos = 0;
-    
-//     // 复制 "[GDB] Query packet: "
-//     const char* prefix = "[GDB] Query packet: ";
-//     while (*prefix) query_msg[pos++] = *prefix++;
-    
-//     // 复制数据包内容
-//     int i = 0;
-//     while (p[i] != '\0' && i < DEBUG_BUFFER_SIZE - 1) {
-//         query_msg[pos++] = p[i++];
-//     }
-    
-//     query_msg[pos++] = '\n';
-//     query_msg[pos] = '\0';
-    
-//     Diagnose::Write(query_msg);
-
-//     // qSupported - GDB 特性查询
-//     if (p[0] == 'q' && p[1] == 'S') {
-//         // 返回支持的特性，明确排除未知项
-//         gdb_send_packet((char*)"PacketSize=1000;qRelocInsn+;multiprocess+;QStartNoAckMode-;xmlRegisters-");
-//         return;
-//     }
-
-//     // vMustReplyEmpty - 必须回复空
-//     if (strcmp(p, "vMustReplyEmpty") == 0) {
-//         // 立即回复空包
-//         gdb_send_packet((char*)"");
-//         return;
-//     }
-
-//     // vCont? - 查询支持的继续命令
-//     if (strcmp(p, "vCont?") == 0) {
-//         gdb_send_packet((char*)"vCont;c;C;s;S");
-//         return;
-//     }
-
-//     // qC - 查询当前线程 ID
-//     if (p[0] == 'q' && p[1] == 'C' && p[2] == '\0') {
-//         gdb_send_packet((char*)"QC1");
-//         return;
-//     }
-
-//     // qAttached - 查询是否attached
-//     if (strcmp(p, "qAttached") == 0) {
-//         gdb_send_packet((char*)"1");  // 已attached
-//         return;
-//     }
-
-//     // qTStatus - 线程状态查询，返回空表示不支持
-//     if (strcmp(p, "qTStatus") == 0) {
-//         gdb_send_packet((char*)"");
-//         return;
-//     }
-
-//     // qfThreadInfo / qsThreadInfo - 线程信息查询，返回空表示不支持
-//     if (strncmp(p, "qfThreadInfo", 12) == 0 || strncmp(p, "qsThreadInfo", 12) == 0) {
-//         gdb_send_packet((char*)"");
-//         return;
-//     }
-
-//     // 其他查询命令返回空
-//     gdb_send_packet((char*)"");
-// }
 void gdb_handle_query(char* p) {
     // 调试日志（您的实现很好）
     char query_msg[DEBUG_BUFFER_SIZE + 100];

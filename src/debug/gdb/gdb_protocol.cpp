@@ -1010,9 +1010,9 @@ void gdb_handle_read_memory(char* packet) {
     }
     addr_hex[addr_len] = '\0';
     
-    // 字节序转换
-    uint32_t host_addr = gdb_hex_to_host32(addr_hex);
-    uint32_t addr = hex_str_to_uint(addr_hex);
+    // 关键修改：统一使用直接解析，不进行字节序转换
+    uint32_t host_addr = hex_str_to_uint(addr_hex);
+    
     // 解析长度
     char* len_str = comma + 1;
     uint32_t len = hex_str_to_uint(len_str);
@@ -1028,9 +1028,9 @@ void gdb_handle_read_memory(char* packet) {
         return;
     }
     
-    // 内存读取
+    // 内存读取 - 使用正确的host_addr
     static char mem_buffer[DEBUG_BUFFER_SIZE];
-    if (gdb_safe_read_memory(addr, mem_buffer, len) < 0) {
+    if (gdb_safe_read_memory(host_addr, mem_buffer, len) < 0) {
         gdb_send_packet("E02");
         return;
     }

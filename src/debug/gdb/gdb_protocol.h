@@ -22,9 +22,11 @@ void gdb_handle_read_registers(char* packet);
 void gdb_handle_write_registers(char* packet);
 void gdb_handle_read_memory(char* packet);
 void gdb_handle_write_memory(char* packet);
+void gdb_handle_binary_write_memory(char* packet);
 void gdb_handle_set_breakpoint(char* packet);
 void gdb_handle_remove_breakpoint(char* packet);
 void gdb_handle_query(char* packet);
 void gdb_handle_signal(char* packet);
+void gdb_handle_thread_command(char* packet);
 
 #endif // V6PP_GDB_PROTOCOL_H

@@ -98,13 +98,35 @@ int serial_inb_nb(void) {
 
 // 发送数据
 int serial_write(const char* data, int len) {
+    // int sent = 0;
+
+    // for (int i = 0; i < len; i++) {
+    //     serial_outb((unsigned char)data[i]);
+    //     sent++;
+    // }
+
+    // return sent;
     int sent = 0;
-
-    for (int i = 0; i < len; i++) {
-        serial_outb((unsigned char)data[i]);
-        sent++;
+    unsigned short base = SERIAL_COM1_BASE;
+    
+    // 检查发送缓冲区是否就绪
+    if ((inb(SERIAL_LINE_STATUS_PORT(base)) & 0x20) == 0) {
+        return 0;  // 缓冲区满，稍后重试
     }
-
+    
+    // 批量发送数据
+    for (int i = 0; i < len; i++) {
+        outb(SERIAL_DATA_PORT(base), data[i]);
+        sent++;
+        
+        // 每发送16字节检查一次缓冲区
+        if (i % 16 == 15) {
+            if ((inb(SERIAL_LINE_STATUS_PORT(base)) & 0x20) == 0) {
+                break;  // 缓冲区满，停止发送
+            }
+        }
+    }
+    
     return sent;
 }
 

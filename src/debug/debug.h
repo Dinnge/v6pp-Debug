@@ -15,11 +15,13 @@ typedef enum {
     GDB_CMD_WRITE_REG = 'G',
     GDB_CMD_READ_MEM = 'm',
     GDB_CMD_WRITE_MEM = 'M',
+    GDB_CMD_WRITE_MEM_BINARY = 'X',
     GDB_CMD_SET_BREAK = 'Z',
     GDB_CMD_REMOVE_BREAK = 'z',
     GDB_CMD_QUERY = 'q',
     GDB_CMD_SIGNAL = '?',
     GDB_CMD_VENDOR = 'v',
+    GDB_CMD_THREAD = 'H',
 } GDBCommand;
 
 // 调试模式枚举

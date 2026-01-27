@@ -764,11 +764,13 @@ GDBCommand gdb_parse_command(char* packet) {
         case 'G': return GDB_CMD_WRITE_REG;
         case 'm': return GDB_CMD_READ_MEM;
         case 'M': return GDB_CMD_WRITE_MEM;
+        case 'X': return GDB_CMD_WRITE_MEM_BINARY; 
         case 'Z': return GDB_CMD_SET_BREAK;
         case 'z': return GDB_CMD_REMOVE_BREAK;
         case 'q': return GDB_CMD_QUERY;
         case 'v': return GDB_CMD_VENDOR;
         case '?': return GDB_CMD_SIGNAL;
+        case 'H': return GDB_CMD_THREAD;
         default: return GDB_CMD_UNKNOWN;
     }
 }
@@ -781,6 +783,26 @@ void gdb_handle_continue(char* p) {
 // 处理单步执行命令
 void gdb_handle_step(char* p) {
     gdb_send_ok();
+}
+
+void gdb_handle_thread_command(char* packet) {
+    // 格式: H<操作类型><线程号>
+    if (strlen(packet) < 3) {
+        gdb_send_packet("E01");  // 格式错误
+        return;
+    }
+    
+    char op_type = packet[1];  // 'g', 'c', 或 's'
+    char* thread_str = packet + 2;
+    
+    Diagnose::Write("[GDB] 线程命令: 操作=%c, 线程=%s\n", op_type, thread_str);
+    
+    // 单线程系统，只支持线程0和1
+    if (strcmp(thread_str, "0") == 0 || strcmp(thread_str, "1") == 0) {
+        gdb_send_packet("OK");
+    } else {
+        gdb_send_packet("E01");  // 无效线程
+    }
 }
 
 void gdb_handle_read_registers(char* p) {
@@ -879,6 +901,13 @@ void gdb_handle_write_registers(char* p) {
     }
 
     char* data = p + 1;
+    int data_len = strlen(data);
+    
+    // 验证数据长度：每个寄存器8个十六进制字符
+    if (data_len != GDB_REG_COUNT * 8) {
+        gdb_send_error(0);
+        return;
+    }
     
     for (int reg_index = 0; reg_index < GDB_REG_COUNT; reg_index++) {
         // 提取8字符十六进制
@@ -888,14 +917,11 @@ void gdb_handle_write_registers(char* p) {
         }
         reg_hex[8] = '\0';
         
-        // 关键修改：大端序→小端序转换
-        uint32_t reg_value = gdb_hex_to_host32(reg_hex);
+        // 关键修复：直接转换，不要字节序转换
+        uint32_t reg_value = hex_str_to_uint(reg_hex);
         
         // 设置寄存器
         gdb_set_register(reg_index, reg_value);
-        //     gdb_send_error(0);
-        //     return;
-        // }
     }
     
     gdb_send_ok();
@@ -966,10 +992,10 @@ void gdb_handle_write_registers(char* p) {
 // 安全的内存读取函数
 int gdb_safe_read_memory(uint32_t addr, char* buffer, uint32_t len) {
     // 安全检查1：只允许内核空间访问
-    if (addr < 0xC0000000) {
-        Diagnose::Write("[GDB] 内存读取失败：拒绝用户空间访问 0x%08x\n", addr);
-        return -1;
-    }
+    // if (addr < 0xC0000000) {
+    //     Diagnose::Write("[GDB] 内存读取失败：拒绝用户空间访问 0x%08x\n", addr);
+    //     return -1;
+    // }
     
     // 安全检查2：边界检查
     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
@@ -978,7 +1004,7 @@ int gdb_safe_read_memory(uint32_t addr, char* buffer, uint32_t len) {
     }
     
     // 安全检查3：地址范围检查
-    if (addr + len < addr) {  // 检查溢出
+    if (addr >= 0xc0400000) {  // 检查溢出
         Diagnose::Write("[GDB] 内存读取失败：地址溢出 0x%08x + %u\n", addr, len);
         return -1;
     }
@@ -1023,7 +1049,7 @@ void gdb_handle_read_memory(char* packet) {
     }
     
     // 安全检查
-    if (host_addr < 0xC0000000) {
+    if (host_addr >= 0xc0400000) {
         gdb_send_packet("E00");
         return;
     }
@@ -1121,15 +1147,20 @@ void gdb_handle_read_memory(char* packet) {
 
 int gdb_safe_write_memory(uint32_t addr, const char* data, uint32_t len) {
     // 安全检查1：只允许内核空间访问
-    if (addr < 0xC0000000) {
-        return -1;
-    }
+    // if (addr < 0xC0000000) {
+    //     return -1;
+    // }
     
     // 安全检查2：边界检查
     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
         return -1;
     }
     
+    if (addr >= 0xc0400000) {  // 检查溢出
+        Diagnose::Write("[GDB] 内存读取失败：地址溢出 0x%08x + %u\n", addr, len);
+        return -1;
+    }
+
     // 安全检查3：地址范围检查
     if (addr + len < addr) {  // 检查溢出
         return -1;
@@ -1295,6 +1326,71 @@ void gdb_handle_write_memory(char* packet) {
     // 关键修改：取消注释，启用内存写入
     if (gdb_safe_write_memory(host_addr, data_buffer, len) < 0) {
         gdb_send_packet("E02");
+        return;
+    }
+    
+    gdb_send_packet("OK");
+}
+
+void gdb_handle_binary_write_memory(char* packet) {
+    // 格式: Xaddr,length:binary_data
+    char* comma = gdb_strchr(packet, ',');
+    char* colon = gdb_strchr(comma, ':');
+    
+    if (!comma || !colon) {
+        gdb_send_packet("E01");  // 格式错误
+        return;
+    }
+    
+    // 提取地址
+    int addr_len = comma - (packet + 1);
+    if (addr_len <= 0 || addr_len > 8) {
+        gdb_send_packet("E01");
+        return;
+    }
+    
+    char addr_hex[9] = {0};
+    for (int i = 0; i < addr_len && i < 8; i++) {
+        addr_hex[i] = packet[1 + i];
+    }
+    addr_hex[addr_len] = '\0';
+    uint32_t host_addr = hex_str_to_uint(addr_hex);
+    
+    // 提取长度
+    int len_len = colon - (comma + 1);
+    if (len_len <= 0 || len_len > 8) {
+        gdb_send_packet("E01");
+        return;
+    }
+    
+    char len_hex[9] = {0};
+    for (int i = 0; i < len_len && i < 8; i++) {
+        len_hex[i] = comma[1 + i];
+    }
+    len_hex[len_len] = '\0';
+    uint32_t len = hex_str_to_uint(len_hex);
+    
+    // 提取二进制数据
+    char* binary_data = colon + 1;
+    int data_len = gdb_strlen(binary_data);
+    
+    // 关键修复：验证数据长度
+    if (data_len != len) {
+        gdb_send_packet("E03");  // 数据长度不匹配
+        return;
+    }
+    
+    // 限制长度
+    if (len == 0 || len > DEBUG_BUFFER_SIZE) {
+        gdb_send_packet("E02");  // 长度错误
+        return;
+    }
+    
+    Diagnose::Write("[GDB] 二进制写入: 地址=0x%08x, 长度=%u\n", host_addr, len);
+    
+    // 安全写入
+    if (gdb_safe_write_memory(host_addr, binary_data, len) < 0) {
+        gdb_send_packet("E04");  // 写入失败
         return;
     }
     
@@ -1501,7 +1597,7 @@ void gdb_handle_query(char* p) {
 
     // qTStatus - 线程状态查询
     if (strcmp(p, "qTStatus") == 0) {
-        gdb_send_packet((char*)"");  // 不支持跟踪
+        gdb_send_packet((char*)"T0");  // 不支持跟踪
         return;
     }
 

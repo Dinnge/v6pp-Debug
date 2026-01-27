@@ -246,6 +246,9 @@ void debugger_main(void) {
                 // 解析命令并处理
                 GDBCommand cmd = gdb_parse_command(packet_buffer);
                 switch (cmd) {
+                    case GDB_CMD_THREAD:
+                        gdb_handle_thread_command(packet_buffer);
+                        break;
                     case GDB_CMD_CONTINUE:
                         gdb_handle_continue(packet_buffer);
                         break;
@@ -263,6 +266,9 @@ void debugger_main(void) {
                         break;
                     case GDB_CMD_WRITE_MEM:
                         gdb_handle_write_memory(packet_buffer);
+                        break;
+                    case GDB_CMD_WRITE_MEM_BINARY:  // 新增：二进制格式写入
+                        gdb_handle_binary_write_memory(packet_buffer);
                         break;
                     case GDB_CMD_SET_BREAK:
                         gdb_handle_set_breakpoint(packet_buffer);

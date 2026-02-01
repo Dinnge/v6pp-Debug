@@ -213,6 +213,8 @@
 
 // 全局寄存器上下文
 static GDBRegisters g_reg_context;
+// 软件上下文是否已由保存或写入填充（1 = 有效）
+static int g_reg_context_valid = 0;
 
 // 十六进制字符表
 static const char* hex_chars = "0123456789abcdef";
@@ -230,6 +232,12 @@ void gdb_registers_save(void) {
     // 添加诊断输出
     Diagnose::Write("[DEBUG] gdb_registers_save called\n");
     
+    // 如果上下文已经有效，则不要覆盖（避免覆盖由 gdb_set_register 写入的软件上下文）
+    if (g_reg_context_valid) {
+        Diagnose::Write("[DEBUG] gdb_registers_save: context already valid, skip saving\n");
+        return;
+    }
+
     // 尝试安全地保存寄存器值
     // 通用寄存器
     __asm__ volatile ("movl %%eax, %0" : "=m"(g_reg_context.eax));
@@ -251,12 +259,28 @@ void gdb_registers_save(void) {
     
     // EIP 和 EFLAGS 需要从异常帧中获取
     // 暂时设为默认值，但至少通用寄存器是真实的
-    g_reg_context.eip = 0x100000;  // 内核入口点（占位符）
-    g_reg_context.eflags = 0x202;  // IF=1（占位符）
+    // g_reg_context.eip = 0x100000;  // 内核入口点（占位符）
+    // g_reg_context.eflags = 0x202;  // IF=1（占位符）
+    // 使用准确的汇编代码获取 EIP
+    __asm__ __volatile__ (
+        "call 1f\n\t"
+        "1: popl %0\n\t"
+        : "=r"(g_reg_context.eip)
+    );
     
-    // 记录我们使用了安全模式
-    Diagnose::Write("[SAFE] Using safe register values to avoid page fault\n");
-    Diagnose::Write("[DEBUG] gdb_registers_save completed (safe mode)\n");
+    // 使用准确的汇编代码获取 EFLAGS
+    __asm__ __volatile__ (
+        "pushfl\n\t"
+        "popl %0\n\t"
+        : "=r"(g_reg_context.eflags)
+    );
+    // 标记上下文为有效，避免后续无意覆盖
+    // g_reg_context_valid = 1;
+}
+
+// 在进入新的调试上下文（trap/断点）时调用，强制下一次保存从物理寄存器刷新
+void gdb_registers_invalidate(void) {
+    g_reg_context_valid = 0;
 }
 
 // 恢复寄存器
@@ -292,8 +316,8 @@ GDBRegisters* gdb_get_registers(void) {
     return &g_reg_context;
 }
 
-// 设置寄存器值
 void gdb_set_register(int reg_num, uint32_t value) {
+    // 首先更新软件上下文
     switch (reg_num) {
         case GDB_REG_EAX:   g_reg_context.eax = value; break;
         case GDB_REG_ECX:   g_reg_context.ecx = value; break;
@@ -311,6 +335,63 @@ void gdb_set_register(int reg_num, uint32_t value) {
         case GDB_REG_ES:    g_reg_context.es = value; break;
         case GDB_REG_FS:    g_reg_context.fs = value; break;
         case GDB_REG_GS:    g_reg_context.gs = value; break;
+    }
+    // 标记软件上下文为有效（由写操作更新）
+    g_reg_context_valid = 1;
+
+    // 尽量将修改写回到物理寄存器（仅对安全的寄存器）。ESP/EBP/EIP/段寄存器
+    // 不在此处直接写回以避免破坏当前执行上下文。
+    switch (reg_num) {
+        case GDB_REG_EAX:
+            __asm__ __volatile__("movl %0, %%eax" : : "r"(value) : "eax", "memory");
+            {
+                uint32_t check;
+                __asm__ __volatile__("movl %%eax, %0" : "=r"(check));
+                Diagnose::Write("[DEBUG] physical EAX after write = 0x%08x\n", check);
+            }
+            break;
+        case GDB_REG_ECX:
+            __asm__ __volatile__("movl %0, %%ecx" : : "r"(value) : "ecx", "memory");
+            break;
+        case GDB_REG_EDX:
+            __asm__ __volatile__("movl %0, %%edx" : : "r"(value) : "edx", "memory");
+            break;
+        case GDB_REG_EBX:
+            __asm__ __volatile__("movl %0, %%ebx" : : "r"(value) : "ebx", "memory");
+            break;
+        case GDB_REG_ESI:
+            __asm__ __volatile__("movl %0, %%esi" : : "r"(value) : "esi", "memory");
+            break;
+        case GDB_REG_EDI:
+            __asm__ __volatile__("movl %0, %%edi" : : "r"(value) : "edi", "memory");
+            break;
+        case GDB_REG_EFLAGS:
+            __asm__ __volatile__("pushl %0\n\tpopfl" : : "r"(value) : "cc", "memory");
+            {
+                uint32_t check;
+                __asm__ __volatile__("pushfl\n\tpopl %0" : "=r"(check));
+                Diagnose::Write("[DEBUG] physical EFLAGS after write = 0x%08x\n", check);
+            }
+            break;
+        case GDB_REG_ESP:
+            Diagnose::Write("[GDB] 警告: 写 ESP 请求已记录，仅更新软件上下文\n");
+            break;
+        case GDB_REG_EBP:
+            Diagnose::Write("[GDB] 警告: 写 EBP 请求已记录，仅更新软件上下文\n");
+            break;
+        default:
+            // EIP, 段寄存器等不在此处写回
+            break;
+    }
+    
+    // 调试输出
+    const char* reg_names[] = {
+        "EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI",
+        "EIP", "EFLAGS", "CS", "SS", "DS", "ES", "FS", "GS"
+    };
+    
+    if (reg_num >= 0 && reg_num < 16) {
+        Diagnose::Write("[DEBUG] 设置寄存器 %s = 0x%08x\n", reg_names[reg_num], value);
     }
 }
 

@@ -50,6 +50,7 @@ typedef struct {
 void gdb_registers_init(void);
 void gdb_registers_save(void);
 void gdb_registers_restore(void);
+void gdb_registers_invalidate(void);
 
 // 获取当前寄存器
 GDBRegisters* gdb_get_registers(void);

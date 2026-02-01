@@ -20,6 +20,7 @@ void gdb_handle_continue(char* packet);
 void gdb_handle_step(char* packet);
 void gdb_handle_read_registers(char* packet);
 void gdb_handle_write_registers(char* packet);
+void gdb_handle_write_single_register(char* p);
 void gdb_handle_read_memory(char* packet);
 void gdb_handle_write_memory(char* packet);
 void gdb_handle_binary_write_memory(char* packet);

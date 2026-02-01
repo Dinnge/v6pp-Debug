@@ -13,6 +13,7 @@ typedef enum {
     GDB_CMD_STEP = 's',
     GDB_CMD_READ_REG = 'g',
     GDB_CMD_WRITE_REG = 'G',
+    GDB_CMD_WRITE_SINGLE_REG = 'P',
     GDB_CMD_READ_MEM = 'm',
     GDB_CMD_WRITE_MEM = 'M',
     GDB_CMD_WRITE_MEM_BINARY = 'X',
@@ -38,6 +39,7 @@ typedef struct {
     int mode;
     char buffer[DEBUG_BUFFER_SIZE];
     int buffer_pos;
+    int resume_requested;
 } DebuggerState;
 
 int debugger_init(void);

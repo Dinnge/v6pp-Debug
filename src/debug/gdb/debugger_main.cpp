@@ -261,6 +261,9 @@ void debugger_main(void) {
                     case GDB_CMD_WRITE_REG:
                         gdb_handle_write_registers(packet_buffer);
                         break;
+                    case GDB_CMD_WRITE_SINGLE_REG:
+                        gdb_handle_write_single_register(packet_buffer);
+                        break;      
                     case GDB_CMD_READ_MEM:
                         gdb_handle_read_memory(packet_buffer);
                         break;
@@ -290,6 +293,12 @@ void debugger_main(void) {
                         serial_send_packet((char*)"OK", 2);
                         Diagnose::Write("Sent OK response for unknown command\n");
                         break;
+                }
+                // 如果收到继续/单步请求，退出调试循环以恢复执行
+                if (g_debugger.resume_requested) {
+                    g_debugger.resume_requested = 0;
+                    Diagnose::Write("Resuming execution as requested by GDB\n");
+                    return;
                 }
             } else if (packet_len < 0) {
                 // 接收错误，可能是连接断开

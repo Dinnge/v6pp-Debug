@@ -580,6 +580,9 @@ void host32_to_gdb_hex(uint32_t value, char* output) {
 
 // 全局 socket 变量
 static Socket g_client_socket = (Socket)-1;
+// 全局寄存器上下文
+// static GDBRegisters g_reg_context;
+
 
 // 设置当前连接的客户端 socket
 void gdb_set_client_socket(Socket sock) {
@@ -762,6 +765,7 @@ GDBCommand gdb_parse_command(char* packet) {
         case 's': return GDB_CMD_STEP;
         case 'g': return GDB_CMD_READ_REG;
         case 'G': return GDB_CMD_WRITE_REG;
+        case 'P': return GDB_CMD_WRITE_SINGLE_REG;
         case 'm': return GDB_CMD_READ_MEM;
         case 'M': return GDB_CMD_WRITE_MEM;
         case 'X': return GDB_CMD_WRITE_MEM_BINARY; 
@@ -777,12 +781,24 @@ GDBCommand gdb_parse_command(char* packet) {
 
 // 处理继续执行命令
 void gdb_handle_continue(char* p) {
+    // 回复 OK 并请求恢复执行
     gdb_send_ok();
+    g_debugger.mode = DEBUG_MODE_CONTINUE;
+    // 确保在恢复前清除单步标志
+    gdb_clear_single_step();
+    g_debugger.resume_requested = 1;
+    Diagnose::Write("GDB: continue requested\n");
 }
 
 // 处理单步执行命令
 void gdb_handle_step(char* p) {
+    // 回复 OK 并请求单步执行一次
     gdb_send_ok();
+    g_debugger.mode = DEBUG_MODE_STEP;
+    // 设置单步标志，在恢复时由 registers restore 生效
+    gdb_set_single_step();
+    g_debugger.resume_requested = 1;
+    Diagnose::Write("GDB: step requested\n");
 }
 
 void gdb_handle_thread_command(char* packet) {
@@ -805,92 +821,102 @@ void gdb_handle_thread_command(char* packet) {
     }
 }
 
+// void gdb_handle_read_registers(char* p) {
+
+//     if (p == NULL || p[0] == '\0') {
+//         Diagnose::Write("[GDB] 警告: 接收到空指针或空数据包，返回默认寄存器值\n");
+        
+//         // 返回默认寄存器值（全零）
+//         char default_regs[129];
+//         for (int i = 0; i < 128; i++) {
+//             default_regs[i] = '0';
+//         }
+//         default_regs[128] = '\0';
+        
+//         gdb_send_packet(default_regs);
+//         return;
+//     }
+
+//     // Diagnose::Write("[DEBUG] Reading registers with BIG-ENDIAN format\n");
+    
+//     uint32_t regs[16] = {0};
+    
+//     // 读取真实寄存器值（小端序）
+//     __asm__ __volatile__ (
+//         "movl %%eax, %0\n\t"
+//         "movl %%ecx, %1\n\t" 
+//         "movl %%edx, %2\n\t"
+//         "movl %%ebx, %3\n\t"
+//         "movl %%esp, %4\n\t"
+//         "movl %%ebp, %5\n\t"
+//         "movl %%esi, %6\n\t"
+//         "movl %%edi, %7\n\t"
+//         : "=m"(regs[0]), "=m"(regs[1]), "=m"(regs[2]), "=m"(regs[3]),
+//           "=m"(regs[4]), "=m"(regs[5]), "=m"(regs[6]), "=m"(regs[7])
+//         :
+//         : "memory"
+//     );
+    
+//     // EIP
+//     __asm__ __volatile__ (
+//         "call 1f\n\t"
+//         "1: popl %0\n\t"
+//         : "=r"(regs[8])
+//     );
+    
+//     // EFLAGS
+//     __asm__ __volatile__ (
+//         "pushfl\n\t"
+//         "popl %0\n\t"
+//         : "=r"(regs[9])
+//     );
+    
+//     // 段寄存器
+//     uint16_t temp16;
+//     __asm__ __volatile__ ("movw %%cs, %0" : "=r"(temp16));
+//     regs[10] = temp16;
+//     __asm__ __volatile__ ("movw %%ss, %0" : "=r"(temp16));
+//     regs[11] = temp16;
+//     __asm__ __volatile__ ("movw %%ds, %0" : "=r"(temp16));
+//     regs[12] = temp16;
+//     __asm__ __volatile__ ("movw %%es, %0" : "=r"(temp16));
+//     regs[13] = temp16;
+//     __asm__ __volatile__ ("movw %%fs, %0" : "=r"(temp16));
+//     regs[14] = temp16;
+//     __asm__ __volatile__ ("movw %%gs, %0" : "=r"(temp16));
+//     regs[15] = temp16;
+    
+//     // 调试输出：显示关键寄存器转换前后的值
+//     char le_display[9], be_display[9];
+//     host32_to_gdb_hex(regs[8], be_display);  // 使用您现有的函数
+//     Diagnose::Write("[DEBUG] EIP min=0x%08x →  max=0x%s\n", regs[8], be_display);
+    
+//     // host32_to_gdb_hex(regs[4], be_display);
+//     // Diagnose::Write("[DEBUG] ESP转换: 小端序=0x%08x → 大端序=0x%s\n", regs[4], be_display);
+    
+//     // host32_to_gdb_hex(regs[0], be_display);
+//     // Diagnose::Write("[DEBUG] EAX转换: 小端序=0x%08x → 大端序=0x%s\n", regs[0], be_display);
+    
+//     // 关键修改：将所有寄存器值转换为大端序格式发送给GDB
+//     char response[129];
+    
+//     for (int i = 0; i < 16; i++) {
+//         // 使用您现有的函数：小端序主机值 → 大端序十六进制字符串
+//         host32_to_gdb_hex(regs[i], response + i * 8);
+//     }
+//     response[128] = '\0';
+    
+//     gdb_send_packet(response);
+// }
+
 void gdb_handle_read_registers(char* p) {
+    // 确保在进入调试器时调用过 `gdb_registers_save()`，这里为了保险也调用一次。
+    gdb_registers_save();
 
-    if (p == NULL || p[0] == '\0') {
-        Diagnose::Write("[GDB] 警告: 接收到空指针或空数据包，返回默认寄存器值\n");
-        
-        // 返回默认寄存器值（全零）
-        char default_regs[129];
-        for (int i = 0; i < 128; i++) {
-            default_regs[i] = '0';
-        }
-        default_regs[128] = '\0';
-        
-        gdb_send_packet(default_regs);
-        return;
-    }
-
-    Diagnose::Write("[DEBUG] Reading registers with BIG-ENDIAN format\n");
-    
-    uint32_t regs[16] = {0};
-    
-    // 读取真实寄存器值（小端序）
-    __asm__ __volatile__ (
-        "movl %%eax, %0\n\t"
-        "movl %%ecx, %1\n\t" 
-        "movl %%edx, %2\n\t"
-        "movl %%ebx, %3\n\t"
-        "movl %%esp, %4\n\t"
-        "movl %%ebp, %5\n\t"
-        "movl %%esi, %6\n\t"
-        "movl %%edi, %7\n\t"
-        : "=m"(regs[0]), "=m"(regs[1]), "=m"(regs[2]), "=m"(regs[3]),
-          "=m"(regs[4]), "=m"(regs[5]), "=m"(regs[6]), "=m"(regs[7])
-        :
-        : "memory"
-    );
-    
-    // EIP
-    __asm__ __volatile__ (
-        "call 1f\n\t"
-        "1: popl %0\n\t"
-        : "=r"(regs[8])
-    );
-    
-    // EFLAGS
-    __asm__ __volatile__ (
-        "pushfl\n\t"
-        "popl %0\n\t"
-        : "=r"(regs[9])
-    );
-    
-    // 段寄存器
-    uint16_t temp16;
-    __asm__ __volatile__ ("movw %%cs, %0" : "=r"(temp16));
-    regs[10] = temp16;
-    __asm__ __volatile__ ("movw %%ss, %0" : "=r"(temp16));
-    regs[11] = temp16;
-    __asm__ __volatile__ ("movw %%ds, %0" : "=r"(temp16));
-    regs[12] = temp16;
-    __asm__ __volatile__ ("movw %%es, %0" : "=r"(temp16));
-    regs[13] = temp16;
-    __asm__ __volatile__ ("movw %%fs, %0" : "=r"(temp16));
-    regs[14] = temp16;
-    __asm__ __volatile__ ("movw %%gs, %0" : "=r"(temp16));
-    regs[15] = temp16;
-    
-    // 调试输出：显示关键寄存器转换前后的值
-    char le_display[9], be_display[9];
-    host32_to_gdb_hex(regs[8], be_display);  // 使用您现有的函数
-    Diagnose::Write("[DEBUG] EIP min=0x%08x →  max=0x%s\n", regs[8], be_display);
-    
-    // host32_to_gdb_hex(regs[4], be_display);
-    // Diagnose::Write("[DEBUG] ESP转换: 小端序=0x%08x → 大端序=0x%s\n", regs[4], be_display);
-    
-    // host32_to_gdb_hex(regs[0], be_display);
-    // Diagnose::Write("[DEBUG] EAX转换: 小端序=0x%08x → 大端序=0x%s\n", regs[0], be_display);
-    
-    // 关键修改：将所有寄存器值转换为大端序格式发送给GDB
-    char response[129];
-    
-    for (int i = 0; i < 16; i++) {
-        // 使用您现有的函数：小端序主机值 → 大端序十六进制字符串
-        host32_to_gdb_hex(regs[i], response + i * 8);
-    }
-    response[128] = '\0';
-    
-    gdb_send_packet(response);
+    // 使用已有的转换函数构造 GDB 格式字符串并发送。
+    char reg_str[512];
+    gdb_registers_to_string(reg_str, sizeof(reg_str));
+    gdb_send_packet(reg_str);
 }
 
 // 处理写入寄存器命令 需要将大端转为小端
@@ -923,6 +949,71 @@ void gdb_handle_write_registers(char* p) {
         // 设置寄存器
         gdb_set_register(reg_index, reg_value);
     }
+    
+    gdb_send_ok();
+}
+
+// 处理P命令：写入单个寄存器
+// 格式: Pn=xxxxxxxx  （n是寄存器编号，xxxxxxxx是寄存器值）
+void gdb_handle_write_single_register(char* p) {
+    Diagnose::Write("[GDB] 进入gdb_handle_write_single_register函数\n");
+    if (p[0] != 'P') {
+        gdb_send_error(0);
+        return;
+    }
+    
+    // 跳过'P'
+    char* data = p + 1;
+    
+    // 查找'='分隔符
+    char* equal_sign = gdb_strchr(data, '=');
+    if (!equal_sign) {
+        Diagnose::Write("[GDB] 无效的P命令格式: %s\n", p);
+        gdb_send_error(0);
+        return;
+    }
+    
+    // 提取寄存器编号
+    char reg_str[16] = {0};
+    int reg_len = equal_sign - data;
+    
+    // 使用自定义的字符串复制
+    for (int i = 0; i < reg_len && i < 15; i++) {
+        reg_str[i] = data[i];
+    }
+    reg_str[reg_len] = '\0';
+    
+    // 提取寄存器值
+    char* value_str = equal_sign + 1;
+    
+    // 转换为整数 - 使用自定义的字符串转整数
+    int reg_num = 0;
+    for (int i = 0; i < reg_len && reg_str[i] >= '0' && reg_str[i] <= '9'; i++) {
+        reg_num = reg_num * 10 + (reg_str[i] - '0');
+    }
+    
+    // 使用自定义的十六进制转换函数
+    uint32_t reg_value = hex_str_to_uint(value_str);
+    
+    // 字节序转换：GDB发送小端序
+    uint32_t host_value = 
+        ((reg_value & 0x000000FF) << 24) |  // 字节0 → 字节3
+        ((reg_value & 0x0000FF00) << 8)  |  // 字节1 → 字节2  
+        ((reg_value & 0x00FF0000) >> 8)  |  // 字节2 → 字节1
+        ((reg_value & 0xFF000000) >> 24);   // 字节3 → 字节0
+    
+    Diagnose::Write("[GDB] P命令: 寄存器%d = 0x%s -> 0x%08x\n", 
+                   reg_num, value_str, host_value);
+    
+    // 验证寄存器编号
+    if (reg_num < 0 || reg_num > GDB_REG_COUNT) {
+        Diagnose::Write("[GDB] 无效的寄存器编号: %d\n", reg_num);
+        gdb_send_error(0);
+        return;
+    }
+    
+    // 设置寄存器
+    gdb_set_register(reg_num, host_value);
     
     gdb_send_ok();
 }

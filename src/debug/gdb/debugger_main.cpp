@@ -106,61 +106,6 @@ void debugger_main(void) {
     
     // 主循环
     while (g_debugger.enabled) {
-        // debug_cycle++;
-        
-        // // 减少调试输出频率，每100000次循环输出一次，避免输出过快
-        // if (debug_cycle % 100000 == 0) {
-        //     int readable = serial_readable();
-        //     // 手动构建字符串以避免交错
-        //     char status_msg[128];
-        //     int pos = 0;
-            
-        //     // 复制 "[STATUS] Cycle="
-        //     const char* prefix = "[STATUS] Cycle=";
-        //     while (*prefix) status_msg[pos++] = *prefix++;
-            
-        //     // 添加周期数
-        //     if (debug_cycle == 100000) {
-        //         const char* num = "100000";
-        //         while (*num) status_msg[pos++] = *num++;
-        //     } else if (debug_cycle == 200000) {
-        //         const char* num = "200000";
-        //         while (*num) status_msg[pos++] = *num++;
-        //     } else {
-        //         const char* active = "active";
-        //         while (*active) status_msg[pos++] = *active++;
-        //     }
-            
-        //     // 添加连接状态
-        //     const char* conn = ", Connected=";
-        //     while (*conn) status_msg[pos++] = *conn++;
-        //     if (g_debugger.connected) {
-        //         status_msg[pos++] = 'Y';
-        //         status_msg[pos++] = 'e';
-        //         status_msg[pos++] = 's';
-        //     } else {
-        //         status_msg[pos++] = 'N';
-        //         status_msg[pos++] = 'o';
-        //     }
-            
-        //     // 添加可读状态
-        //     const char* read = ", Readable=";
-        //     while (*read) status_msg[pos++] = *read++;
-        //     if (readable > 0) {
-        //         status_msg[pos++] = 'Y';
-        //         status_msg[pos++] = 'e';
-        //         status_msg[pos++] = 's';
-        //     } else {
-        //         status_msg[pos++] = 'N';
-        //         status_msg[pos++] = 'o';
-        //     }
-            
-        //     status_msg[pos++] = '\n';
-        //     status_msg[pos] = '\0';
-            
-        //     Diagnose::Write(status_msg);
-        // }
-        
         // 阶段1: 等待GDB连接（接收第一个有效数据包）
         if (!g_debugger.connected) {
             waiting_count++;
@@ -170,8 +115,10 @@ void debugger_main(void) {
                 Diagnose::Write("Waiting for GDB connection... (Listening on COM1)\n");
             }
             
+            int packet_len = serial_recv_packet_with_interrupt(packet_buffer, DEBUG_BUFFER_SIZE);
+
             // 尝试接收一个数据包（非阻塞）
-            int packet_len = serial_recv_packet(packet_buffer, DEBUG_BUFFER_SIZE);
+            // int packet_len = serial_recv_packet(packet_buffer, DEBUG_BUFFER_SIZE);
             
             if (packet_len > 0) {
                 // 成功接收到第一个数据包，标记为已连接
@@ -180,26 +127,19 @@ void debugger_main(void) {
                 Diagnose::Write("First packet received: ");
                 Diagnose::Write(packet_buffer);
                 Diagnose::Write("\n");
-                
-                // // 处理第一个包（通常是qSupported查询）
-                // if (packet_buffer[0] == 'q') {
-                //     // 检查是否是qSupported查询
-                //     int is_qSupported = 1;
-                //     const char* qSupported = "qSupported";
-                //     for (int i = 0; i < 10 && qSupported[i] != '\0'; i++) {
-                //         if (packet_buffer[i] != qSupported[i]) {
-                //             is_qSupported = 0;
-                //             break;
-                //         }
-                //     }
+
+                if (packet_len == 1 && packet_buffer[0] == 0x03) {
+                    // 处理中断请求
+                    Diagnose::Write("[GDB] 处理Ctrl+C中断请求\n");
                     
-                //     if (is_qSupported) {
-                //         // 发送qSupported响应
-                //         char response[] = "PacketSize=4000;qXfer:features:read+";
-                //         serial_send_packet(response, sizeof(response)-1);
-                //         Diagnose::Write("Sent qSupported response to GDB\n");
-                //     }
-                // }
+                    // 取消继续执行
+                    g_debugger.resume_requested = 0;
+                    // g_debugger.listening = 0;
+                    
+                    // 发送停止信号给GDB
+                    gdb_send_packet("S02");  // SIGINT信号
+                    continue;
+                }
                 // 设置客户端socket以便gdb_send_packet能工作
                 gdb_set_client_socket(1);
                 // 处理第一个包（可能是qSupported或vMustReplyEmpty等）
@@ -217,12 +157,9 @@ void debugger_main(void) {
         // 阶段2: 已连接状态，处理GDB命令
         else if (g_debugger.connected) {
             // 尝试接收数据包（非阻塞）
-            int packet_len = serial_recv_packet(packet_buffer, DEBUG_BUFFER_SIZE);
+            int packet_len = serial_recv_packet_with_interrupt(packet_buffer, DEBUG_BUFFER_SIZE);
             
             if (packet_len > 0) {
-                // Diagnose::Write("[GDB] Command received: ");
-                // Diagnose::Write(packet_buffer);
-                // Diagnose::Write("\n");
                 // 安全输出数据包内容（避免多个Diagnose::Write调用导致交错）
                 char output_msg[DEBUG_BUFFER_SIZE + 100];
                 int pos = 0;
@@ -456,27 +393,26 @@ DebuggerState* debugger_get_state(void) {
 
 // 调试器入口函数（异常发生时调用）
 void debugger_enter(void) {
-    Diagnose::Write("Entering debugger...\n");
-
-    // 1. 保存当前寄存器状态
+    Diagnose::Write("[DEBUGGER] 进入调试器，异常发生\n");
+    
+    // 1. 保存当前寄存器状态到调试上下文
     gdb_registers_save();
-
-    // 2. 如果是单步模式，设置 TF 标志
-    if (g_debugger.mode == DEBUG_MODE_STEP) {
-        gdb_set_single_step();
-    }
-    else {
-        gdb_clear_single_step();
-    }
-
-    // 3. 通知 GDB 程序停止（发送 SIGTRAP 信号）
+    Diagnose::Write("[DEBUGGER] 寄存器状态已保存\n");
+    
+    // 2. 发送停止信号给GDB（S05 = SIGTRAP）
     gdb_send_packet("S05");
-
+    Diagnose::Write("[DEBUGGER] 已通知GDB程序停止\n");
+    
+    // 3. 重置调试器状态
+    g_debugger.resume_requested = 0;
+    g_debugger.connected = 1;  // 假设GDB已连接
+    
     // 4. 进入调试器主循环
     debugger_main();
-
-    // 5. 调试器退出后，恢复寄存器继续执行
-    gdb_registers_restore();
-
-    Diagnose::Write("Exiting debugger...\n");
+    
+    // 5. 调试循环退出后的处理
+    Diagnose::Write("[DEBUGGER] 调试循环结束，准备恢复执行\n");
+    
+    // 注意：寄存器恢复应该在debugger_main内部处理
+    // 因为continue/step命令会在debugger_main中调用g_registers_restore()
 }

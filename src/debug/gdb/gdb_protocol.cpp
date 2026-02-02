@@ -780,25 +780,66 @@ GDBCommand gdb_parse_command(char* packet) {
 }
 
 // 处理继续执行命令
-void gdb_handle_continue(char* p) {
-    // 回复 OK 并请求恢复执行
-    gdb_send_ok();
-    g_debugger.mode = DEBUG_MODE_CONTINUE;
-    // 确保在恢复前清除单步标志
-    gdb_clear_single_step();
-    g_debugger.resume_requested = 1;
-    Diagnose::Write("GDB: continue requested\n");
+void gdb_handle_continue(char* packet) {
+    Diagnose::Write("[GDB] 处理继续执行命令: %s\n", packet);
+    
+    // 1. 验证命令类型
+    if (strcmp(packet, "c") == 0 || strncmp(packet, "vCont;c", 6) == 0) {
+        // 2. 恢复寄存器状态
+        if (is_reg_context_valid()) {
+            gdb_registers_restore();
+            Diagnose::Write("[CONTINUE] 寄存器已恢复，准备继续执行\n");
+        }
+        
+        // 3. 清除单步标志
+        gdb_clear_single_step();
+        
+        // 4. 设置继续模式
+        g_debugger.mode = DEBUG_MODE_CONTINUE;
+        g_debugger.resume_requested = 1;
+        
+        // 5. 发送响应
+        if (strncmp(packet, "vCont;", 6) == 0) {
+            gdb_send_packet("OK");
+        } else {
+            gdb_send_packet("S05");  // 传统c命令返回信号
+        }
+        
+        Diagnose::Write("[CONTINUE] 继续执行请求已处理\n");
+    } else {
+        Diagnose::Write("[ERROR] 无效的继续命令: %s\n", packet);
+        gdb_send_error(0);
+    }
 }
 
-// 处理单步执行命令
-void gdb_handle_step(char* p) {
-    // 回复 OK 并请求单步执行一次
-    gdb_send_ok();
-    g_debugger.mode = DEBUG_MODE_STEP;
-    // 设置单步标志，在恢复时由 registers restore 生效
-    gdb_set_single_step();
-    g_debugger.resume_requested = 1;
-    Diagnose::Write("GDB: step requested\n");
+void gdb_handle_step(char* packet) {
+    Diagnose::Write("[GDB] 处理单步执行命令: %s\n", packet);
+    
+    if (strcmp(packet, "s") == 0 || strncmp(packet, "vCont;s", 6) == 0) {
+        // 设置单步标志
+        gdb_set_single_step();
+        
+        // 恢复寄存器状态
+        if (is_reg_context_valid()) {
+            gdb_registers_restore();
+        }
+        
+        // 设置单步模式
+        g_debugger.mode = DEBUG_MODE_STEP;
+        g_debugger.resume_requested = 1;
+        
+        // 发送响应
+        if (strncmp(packet, "vCont;", 6) == 0) {
+            gdb_send_packet("OK");
+        } else {
+            gdb_send_packet("S05");
+        }
+        
+        Diagnose::Write("[STEP] 单步执行请求已处理\n");
+    } else {
+        Diagnose::Write("[ERROR] 无效的单步命令: %s\n", packet);
+        gdb_send_error(0);
+    }
 }
 
 void gdb_handle_thread_command(char* packet) {
@@ -1708,6 +1749,11 @@ void gdb_handle_query(char* p) {
     if (strcmp(p, "QStartNoAckMode") == 0) {
         gdb_send_packet((char*)"OK");  // 确认支持
         return;
+    }
+
+    if (strcmp(p, "?") == 0) {
+        gdb_send_packet("S05");  // 发送停止信号
+        Diagnose::Write("[GDB] 响应信号查询\n");
     }
 
     // 其他查询命令返回空

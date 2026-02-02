@@ -58,6 +58,7 @@ GDBRegisters* gdb_get_registers(void);
 // 设置寄存器值
 void gdb_set_register(int reg_num, uint32_t value);
 uint32_t gdb_get_register_value(int reg_num);
+int is_reg_context_valid(void);
 
 // 将寄存器转换为 GDB 格式字符串
 void gdb_registers_to_string(char* buffer, int buffer_size);

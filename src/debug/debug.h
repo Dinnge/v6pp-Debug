@@ -26,17 +26,18 @@ typedef enum {
 } GDBCommand;
 
 // 调试模式枚举
-typedef enum
-{
-    DEBUG_MODE_CONTINUE = 0,
-    DEBUG_MODE_STEP = 1
+typedef enum {
+    DEBUG_MODE_NONE = 0,
+    DEBUG_MODE_CONTINUE,
+    DEBUG_MODE_STEP
 } DebugMode;
 
 typedef struct {
     int enabled;
     int listening;
     int connected;
-    int mode;
+    // int mode;
+    DebugMode mode;
     char buffer[DEBUG_BUFFER_SIZE];
     int buffer_pos;
     int resume_requested;

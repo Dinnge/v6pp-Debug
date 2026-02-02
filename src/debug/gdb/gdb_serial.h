@@ -49,6 +49,10 @@ int serial_send_packet(const char* data, int len);
 // 接收数据包（带校验和）
 int serial_recv_packet(char* buffer, int max_len);
 
+int check_for_interrupt(void);
+
+int serial_recv_packet_with_interrupt(char* buffer, int max_len);
+
 // 发送ACK确认
 void serial_send_ack(void);
 

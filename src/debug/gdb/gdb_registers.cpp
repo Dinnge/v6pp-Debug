@@ -227,6 +227,10 @@ void gdb_registers_init(void) {
     }
 }
 
+int is_reg_context_valid(void) {
+    return g_reg_context_valid;
+}
+
 // 保存当前寄存器（使用汇编）
 void gdb_registers_save(void) {
     // 添加诊断输出
@@ -445,10 +449,13 @@ void gdb_registers_to_string(char* buffer, int buffer_size) {
 
 // 设置单步执行标志（TF flag in EFLAGS）
 void gdb_set_single_step(void) {
-    g_reg_context.eflags |= 0x100;  // Set TF (Trap Flag)
+    // 设置Trap Flag (位8)
+    g_reg_context.eflags |= 0x100;
+    Diagnose::Write("[STEP] 设置单步标志，EFLAGS=0x%08x\n", g_reg_context.eflags);
 }
 
-// 清除单步执行标志
 void gdb_clear_single_step(void) {
-    g_reg_context.eflags &= ~0x100;  // Clear TF (Trap Flag)
+    // 清除Trap Flag
+    g_reg_context.eflags &= ~0x100;
+    Diagnose::Write("[STEP] 清除单步标志，EFLAGS=0x%08x\n", g_reg_context.eflags);
 }

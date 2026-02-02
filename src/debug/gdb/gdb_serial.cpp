@@ -178,21 +178,115 @@ int serial_send_packet(const char* data, int len) {
 }
 
 // 接收数据包（带校验和）
+// int serial_recv_packet(char* buffer, int max_len) {
+//     int state = 0;  // 0: 等待 '$', 1: 接收数据, 2: 等待 '#', 3: 接收校验和
+//     int len = 0;
+//     unsigned char checksum_calc = 0;
+//     unsigned char checksum_recv = 0;
+//     int checksum_digits = 0;
+
+//     while (1) {
+//         int ch = serial_inb_nb();
+
+//         if (ch < 0) {
+//             return 0;  // 暂无数据
+//         }
+
+//         unsigned char c = (unsigned char)ch;
+
+//         switch (state) {
+//             case 0:  // 等待 '$'
+//                 if (c == '$') {
+//                     state = 1;
+//                     len = 0;
+//                     checksum_calc = 0;
+//                 } else if (c == '+') {
+//                     // ACK，忽略
+//                 } else if (c == '-') {
+//                     // NACK，忽略
+//                 }
+//                 break;
+
+//             case 1:  // 接收数据
+//                 if (c == '#') {
+//                     state = 2;
+//                     checksum_digits = 0;
+//                     checksum_recv = 0;
+//                 } else if (len < max_len - 1) {
+//                     buffer[len++] = c;
+//                     checksum_calc += c;
+//                 }
+//                 break;
+
+//             case 2:  // 接收校验和
+//                 checksum_recv <<= 4;
+//                 if (c >= '0' && c <= '9') {
+//                     checksum_recv |= (c - '0');
+//                 } else if (c >= 'a' && c <= 'f') {
+//                     checksum_recv |= (c - 'a' + 10);
+//                 } else if (c >= 'A' && c <= 'F') {
+//                     checksum_recv |= (c - 'A' + 10);
+//                 }
+
+//                 checksum_digits++;
+
+//                 if (checksum_digits == 2) {
+//                     // 校验和接收完毕
+//                     if (checksum_recv == checksum_calc) {
+//                         // 校验和正确
+//                         buffer[len] = '\0';
+//                         serial_send_ack();  // 发送 ACK
+//                         return len;
+//                     } else {
+//                         // 校验和错误
+//                         serial_send_nack();  // 发送 NACK
+//                         state = 0;
+//                         return -1;
+//                     }
+//                 }
+//                 break;
+//         }
+//     }
+// }
 int serial_recv_packet(char* buffer, int max_len) {
     int state = 0;  // 0: 等待 '$', 1: 接收数据, 2: 等待 '#', 3: 接收校验和
     int len = 0;
     unsigned char checksum_calc = 0;
     unsigned char checksum_recv = 0;
     int checksum_digits = 0;
+    
+    // 添加超时机制，避免无限等待
+    uint32_t timeout_counter = 0;
+    const uint32_t TIMEOUT_LIMIT = 1000000;  // 超时限制
 
     while (1) {
         int ch = serial_inb_nb();
 
         if (ch < 0) {
-            return 0;  // 暂无数据
+            // 无数据可用，检查超时
+            timeout_counter++;
+            if (timeout_counter > TIMEOUT_LIMIT) {
+                // Diagnose::Write("[SERIAL] 接收超时\n");
+                return 0;
+            }
+            
+            // 短暂延迟，避免忙等待
+            for (volatile int i = 0; i < 100; i++);
+            continue;
         }
 
+        // 重置超时计数器
+        timeout_counter = 0;
+        
         unsigned char c = (unsigned char)ch;
+
+        // 关键修改：检查是否是中断字符 (Ctrl+C = 0x03)
+        if (c == 0x03) {
+            // Diagnose::Write("[INTERRUPT] 收到Ctrl+C中断请求\n");
+            buffer[0] = 0x03;  // 返回中断字符
+            buffer[1] = '\0';
+            return 1;  // 返回中断包长度
+        }
 
         switch (state) {
             case 0:  // 等待 '$'
@@ -200,10 +294,16 @@ int serial_recv_packet(char* buffer, int max_len) {
                     state = 1;
                     len = 0;
                     checksum_calc = 0;
+                    // Diagnose::Write("[SERIAL] 开始接收GDB包\n");
                 } else if (c == '+') {
                     // ACK，忽略
+                    // Diagnose::Write("[SERIAL] 收到ACK\n");
                 } else if (c == '-') {
                     // NACK，忽略
+                    // Diagnose::Write("[SERIAL] 收到NACK\n");
+                } else if (c == 0x03) {
+                    // 在非监听状态下收到Ctrl+C，记录日志
+                    // Diagnose::Write("[SERIAL] 收到Ctrl+C但未启用中断监听\n");
                 }
                 break;
 
@@ -212,9 +312,16 @@ int serial_recv_packet(char* buffer, int max_len) {
                     state = 2;
                     checksum_digits = 0;
                     checksum_recv = 0;
+                    // Diagnose::Write("[SERIAL] 数据接收完成，等待校验和\n");
                 } else if (len < max_len - 1) {
                     buffer[len++] = c;
                     checksum_calc += c;
+                } else {
+                    // 缓冲区溢出
+                    // Diagnose::Write("[SERIAL] 缓冲区溢出，包过长\n");
+                    serial_send_nack();
+                    state = 0;
+                    return -1;
                 }
                 break;
 
@@ -226,6 +333,12 @@ int serial_recv_packet(char* buffer, int max_len) {
                     checksum_recv |= (c - 'a' + 10);
                 } else if (c >= 'A' && c <= 'F') {
                     checksum_recv |= (c - 'A' + 10);
+                } else {
+                    // 无效的校验和字符
+                    // Diagnose::Write("[SERIAL] 无效校验和字符: 0x%02x\n", c);
+                    serial_send_nack();
+                    state = 0;
+                    return -1;
                 }
 
                 checksum_digits++;
@@ -235,17 +348,64 @@ int serial_recv_packet(char* buffer, int max_len) {
                     if (checksum_recv == checksum_calc) {
                         // 校验和正确
                         buffer[len] = '\0';
-                        serial_send_ack();  // 发送 ACK
+                        serial_send_ack();
+                        // Diagnose::Write("[SERIAL] 包接收成功: %s\n", buffer);
                         return len;
                     } else {
                         // 校验和错误
-                        serial_send_nack();  // 发送 NACK
+                        Diagnose::Write("[SERIAL] 校验和错误: 计算=0x%02x, 接收=0x%02x\n", 
+                                      checksum_calc, checksum_recv);
+                        serial_send_nack();
                         state = 0;
                         return -1;
                     }
                 }
                 break;
         }
+    }
+}
+
+// 专门用于检测中断的函数（非阻塞）
+int check_for_interrupt(void) {
+    int ch = serial_inb_nb();
+    if (ch >= 0) {
+        unsigned char c = (unsigned char)ch;
+        if (c == 0x03) {
+            Diagnose::Write("[INTERRUPT] 检测到Ctrl+C中断\n");
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// 带中断检测的包接收函数
+int serial_recv_packet_with_interrupt(char* buffer, int max_len) {
+    // uint32_t start_time = get_system_time();
+    
+    while (1) {
+        // 检查中断
+        if (check_for_interrupt()) {
+            buffer[0] = 0x03;
+            buffer[1] = '\0';
+            return 1;
+        }
+        
+        // 尝试接收包
+        int len = serial_recv_packet(buffer, max_len);
+        if (len != 0) {
+            return len;  // 成功接收到包
+        }
+        
+        // 检查超时
+        // if (timeout_ms > 0) {
+        //     uint32_t current_time = get_system_time();
+        //     if (current_time - start_time > timeout_ms) {
+        //         return 0;  // 超时
+        //     }
+        // }
+        
+        // 短暂延迟
+        for (volatile int i = 0; i < 1000; i++);
     }
 }
 

@@ -1,4 +1,4 @@
-/* 内核的初始化 */
+/* 脛脷潞脣碌脛鲁玫脢录禄炉 */
 
 #include "Video.h"
 #include "Simple.h"
@@ -30,11 +30,11 @@
 #include "libyrosstd/string.h"
 #include "../debug/debug.h"
 
-// debug函数
+// debug潞炉脢媒
 extern "C" void debug_start(void);
 extern "C" void debug_stop(void);
 extern "C" void debug_hook(void);
-// 调试器入口函数声明
+// 碌梅脢脭脝梅脠毛驴脷潞炉脢媒脡霉脙梅
 // extern "C" void debugger_enter(void);
 
 bool isInit = false;
@@ -45,9 +45,9 @@ extern "C" void MasterIRQ7()
 	
 	Diagnose::Write("IRQ7 from Master 8259A!\n");
 	
-	//需要在中断处理程序末尾先8259A发送EOI命令
-	//实验发现：有没有下面IOPort::OutByte(0x27, 0x20);这句运行效果都一样，本来以为
-	//发送EOI命令之后会有后续的IRQ7中断进入， 但试下来结果是IRQ7只会产生一次。
+	//脨猫脪陋脭脷脰脨露脧麓娄脌铆鲁脤脨貌脛漏脦虏脧脠8259A路垄脣脥EOI脙眉脕卯
+	//脢碌脩茅路垄脧脰拢潞脫脨脙禄脫脨脧脗脙忙IOPort::OutByte(0x27, 0x20);脮芒戮盲脭脣脨脨脨搂鹿没露录脪禄脩霉拢卢卤戮脌麓脪脭脦陋
+	//路垄脣脥EOI脙眉脕卯脰庐潞贸禄谩脫脨潞贸脨酶碌脛IRQ7脰脨露脧陆酶脠毛拢卢 碌芦脢脭脧脗脌麓陆谩鹿没脢脟IRQ7脰禄禄谩虏煤脡煤脪禄麓脦隆拢
 	IOPort::OutByte(Chip8259A::MASTER_IO_PORT_1, Chip8259A::EOI);
 
 	RestoreContext();
@@ -68,13 +68,13 @@ static void callCtors()
 
 	
 	//constructor++;   
-		/*  (可以先看一下链接脚本：Link.ld)
-		Link script中修改过后，这里的total已经不是constructor的个数了，
-		_CTOR_LIST__的第一个单元开始就是global/static对象的constructor，
-		所以不用 constructor++; 
+		/*  (驴脡脪脭脧脠驴麓脪禄脧脗脕麓陆脫陆脜卤戮拢潞Link.ld)
+		Link script脰脨脨脼赂脛鹿媒潞贸拢卢脮芒脌茂碌脛total脪脩戮颅虏禄脢脟constructor碌脛赂枚脢媒脕脣拢卢
+		_CTOR_LIST__碌脛碌脷脪禄赂枚碌楼脭陋驴陋脢录戮脥脢脟global/static露脭脧贸碌脛constructor拢卢
+		脣霉脪脭虏禄脫脙 constructor++; 
 		*/
 	
-	while(constructor != &__CTOR_END__) //total不是constructor的数量，而是用于检测是否到了_CTOR_LIST__的末尾
+	while(constructor != &__CTOR_END__) //total虏禄脢脟constructor碌脛脢媒脕驴拢卢露酶脢脟脫脙脫脷录矛虏芒脢脟路帽碌陆脕脣_CTOR_LIST__碌脛脛漏脦虏
 	{
 		(*constructor)();
 		constructor++;
@@ -93,6 +93,43 @@ static void initBss() {  // https://github.com/FlowerBlackG/YurongOS/blob/master
         * ((char*) pos) = 0;
     }
 }
+
+// 录眉脜脤脰脨露脧麓娄脌铆鲁脤脨貌 (IRQ1 -> 脰脨露脧脧貌脕驴 0x21)
+// void keyboard_interrupt_handler(void) {
+//     // 露脕脠隆录眉脜脤脡篓脙猫脗毛
+//     uint8_t scancode = inb(0x60);
+    
+//     // Ctrl+C 碌脛脡篓脙猫脗毛脢脟 0x03拢篓ASCII 脗毛拢漏
+//     if (scancode == 0x03) {
+//         // 麓楼路垄碌梅脢脭脪矛鲁拢拢卢陆酶脠毛碌梅脢脭脝梅
+//         asm volatile("int $0x01");
+//     }
+    
+//     // 路垄脣脥脰脨露脧陆谩脢酶脨脜潞脜赂酶 PIC
+//     outb(0x20, 0x20);
+// }
+
+// // 脤铆录脫碌陆main.cpp禄貌IDT脧脿鹿脴脦脛录镁
+// void register_interrupt_handler(uint8_t vector, void (*handler)()) {
+//     // 脥篓鹿媒Machine脌脿脳垄虏谩脰脨露脧麓娄脌铆鲁脤脨貌
+//     Machine::Instance().SetInterruptHandler(vector, handler);
+    
+//     // 禄貌脮脽脰卤陆脫虏脵脳梅IDT拢篓脠莽鹿没脭脢脨铆拢漏
+//     // extern IDT g_IDT;  // 脠芦戮脰IDT露脭脧贸
+//     // g_IDT.SetHandler(vector, handler);
+// }
+
+
+// // 鲁玫脢录禄炉录眉脜脤脰脨露脧
+// void init_keyboard_interrupt() {
+//     // 脡猫脰脙 IRQ1 麓娄脌铆鲁脤脨貌
+//     register_interrupt_handler(0x21, keyboard_interrupt_handler);
+    
+//     // 脝么脫脙录眉脜脤脰脨露脧
+//     enable_irq(1);  // IRQ1
+    
+//     Diagnose::Write("[DEBUG] 录眉脜脤脰脨露脧脪脩脝么脫脙拢卢Ctrl+C 录矛虏芒录陇禄卯\n");
+// }
 
 
 static void callDtors()
@@ -114,13 +151,15 @@ void main0(void)
 {
 	Machine& machine = Machine::Instance();
 
-	Chip8253::Init(60);	//初始化时钟中断芯片
+	Chip8253::Init(60);	//鲁玫脢录禄炉脢卤脰脫脰脨露脧脨戮脝卢
 	Chip8259A::Init();
 	Chip8259A::IrqEnable(Chip8259A::IRQ_TIMER);		
 	DMA::Init();
 	Chip8259A::IrqEnable(Chip8259A::IRQ_IDE);
 	Chip8259A::IrqEnable(Chip8259A::IRQ_SLAVE);
 	Chip8259A::IrqEnable(Chip8259A::IRQ_KBD);
+
+	/* 脝么脫脙 COM1 麓庐驴脷脰脨露脧 (IRQ4) 脪脭卤茫脭脷脰麓脨脨脢卤脛脺虏露禄帽 Ctrl+C */
 
 
 	//init gdt
@@ -130,19 +169,19 @@ void main0(void)
 	machine.InitIDT();	
 	machine.LoadIDT();
 
-	machine.InitPageDirectory();    // 初始化页目录、核心态页表
-	Machine::Instance().InitUserPageTable();     // 初始化用户态页表
-	machine.EnablePageProtection();    //开启分页模式
+	machine.InitPageDirectory();    // 鲁玫脢录禄炉脪鲁脛驴脗录隆垄潞脣脨脛脤卢脪鲁卤铆
+	Machine::Instance().InitUserPageTable();     // 鲁玫脢录禄炉脫脙禄搂脤卢脪鲁卤铆
+	machine.EnablePageProtection();    //驴陋脝么路脰脪鲁脛拢脢陆
 	/* 
-	 * InitPageDirectory()中将线性地址0-4M映射到物理内存
-	 * 0-4M是为保证此注释以下至本函数结尾的代码正确执行！
+	 * InitPageDirectory()脰脨陆芦脧脽脨脭碌脴脰路0-4M脫鲁脡盲碌陆脦茂脌铆脛脷麓忙
+	 * 0-4M脢脟脦陋卤拢脰陇麓脣脳垄脢脥脪脭脧脗脰脕卤戮潞炉脢媒陆谩脦虏碌脛麓煤脗毛脮媒脠路脰麓脨脨拢隆
 	 *
-	 * 现在，除了CS是内核初始化阶段的段选择子，其余段寄存器全是boot使用的段选择子，尤其是SS。
-	 * 分段单元给出的线性地址是[0,4M)。开启分页模式后，一定要有这段空间的映射关系，否则，通不过。
-	 * [4M，8M)空间用户区，不应该被映射，所以先空着，InitUserPageTable(),base填0。
+	 * 脧脰脭脷拢卢鲁媒脕脣CS脢脟脛脷潞脣鲁玫脢录禄炉陆脳露脦碌脛露脦脩隆脭帽脳脫拢卢脝盲脫脿露脦录脛麓忙脝梅脠芦脢脟boot脢鹿脫脙碌脛露脦脩隆脭帽脳脫拢卢脫脠脝盲脢脟SS隆拢
+	 * 路脰露脦碌楼脭陋赂酶鲁枚碌脛脧脽脨脭碌脴脰路脢脟[0,4M)隆拢驴陋脝么路脰脪鲁脛拢脢陆潞贸拢卢脪禄露篓脪陋脫脨脮芒露脦驴脮录盲碌脛脫鲁脡盲鹿脴脧碌拢卢路帽脭貌拢卢脥篓虏禄鹿媒隆拢
+	 * [4M拢卢8M)驴脮录盲脫脙禄搂脟酶拢卢虏禄脫娄赂脙卤禄脫鲁脡盲拢卢脣霉脪脭脧脠驴脮脳脜拢卢InitUserPageTable(),base脤卯0隆拢
 	 */
 
-	//使用0x10段寄存器
+	//脢鹿脫脙0x10露脦录脛麓忙脝梅
 	__asm
 		(" \
 		mov $0x10, %ax\n\t \
@@ -151,7 +190,7 @@ void main0(void)
 		mov %ax, %es\n\t"
 		);
 
-	//将初始化堆栈设置为0xc0400000，这里破坏了封装性，考虑使用更好的方法
+	//陆芦鲁玫脢录禄炉露脩脮禄脡猫脰脙脦陋0xc0400000拢卢脮芒脌茂脝脝禄碌脕脣路芒脳掳脨脭拢卢驴录脗脟脢鹿脫脙赂眉潞脙碌脛路陆路篓
 	__asm
 		(
 		" \
@@ -163,14 +202,14 @@ void main0(void)
 	__asm ("ud2");
 }
 
-/* 应用程序从main返回，进程就终止了，这全是runtime()的功劳。没有它，就只能用exit终止进程了。xV6没这个功能^-^ */
+/* 脫娄脫脙鲁脤脨貌麓脫main路碌禄脴拢卢陆酶鲁脤戮脥脰脮脰鹿脕脣拢卢脮芒脠芦脢脟runtime()碌脛鹿娄脌脥隆拢脙禄脫脨脣眉拢卢戮脥脰禄脛脺脫脙exit脰脮脰鹿陆酶鲁脤脕脣隆拢xV6脙禄脮芒赂枚鹿娄脛脺^-^ */
 extern "C" void runtime()
 {
 	/*
-	1. 销毁runtime的stack Frame
-	2. esp中指向用户栈中argc位置，而ebp尚未正确初始化
-	3. eax中存放可执行程序EntryPoint
-	4~6. exit(0)结束进程
+	1. 脧煤禄脵runtime碌脛stack Frame
+	2. esp脰脨脰赂脧貌脫脙禄搂脮禄脰脨argc脦禄脰脙拢卢露酶ebp脡脨脦麓脮媒脠路鲁玫脢录禄炉
+	3. eax脰脨麓忙路脜驴脡脰麓脨脨鲁脤脨貌EntryPoint
+	4~6. exit(0)陆谩脢酶陆酶鲁脤
 	*/
 	__asm("	leave;	\
 			movl %%esp, %%ebp;	\
@@ -181,8 +220,8 @@ extern "C" void runtime()
 }
 
 /*
-  * 1#进程在执行完MoveToUserStack()从ring0退出到ring3优先级后，会调用ExecShell()，此函数通过"int $0x80"
-  * (EAX=execv系统调用号)加载“/Shell.exe”程序，其功能相当于在用户程序中执行系统调用execv(char* pathname, char* argv[])。
+  * 1#陆酶鲁脤脭脷脰麓脨脨脥锚MoveToUserStack()麓脫ring0脥脣鲁枚碌陆ring3脫脜脧脠录露潞贸拢卢禄谩碌梅脫脙ExecShell()拢卢麓脣潞炉脢媒脥篓鹿媒"int $0x80"
+  * (EAX=execv脧碌脥鲁碌梅脫脙潞脜)录脫脭脴隆掳/Shell.exe隆卤鲁脤脨貌拢卢脝盲鹿娄脛脺脧脿碌卤脫脷脭脷脫脙禄搂鲁脤脨貌脰脨脰麓脨脨脧碌脥鲁碌梅脫脙execv(char* pathname, char* argv[])隆拢
   */
 extern "C" void ExecShell()
 {
@@ -194,7 +233,7 @@ extern "C" void ExecShell()
 }
 
 #if 0
-/* 此函数test文件夹中的代码会引用，但貌似可以删除，记得把它删掉*/
+/* 麓脣潞炉脢媒test脦脛录镁录脨脰脨碌脛麓煤脗毛禄谩脪媒脫脙拢卢碌芦脙虏脣脝驴脡脪脭脡戮鲁媒拢卢录脟碌脙掳脩脣眉脡戮碌么*/
 extern "C" void Delay()
 {
 	for ( int i = 0; i < 50; i++ )
@@ -236,34 +275,34 @@ extern "C" void next()
 #endif
 	
 
-	//这个时候0M-4M的内存映射已经不被使用了，所以要重新映射用户态的页表，为用户态程序运行做好准备
-	//Machine::Instance().InitUserPageTable();
-	//FlushPageDirectory();
+	// 脮芒赂枚脢卤潞貌0M-4M碌脛脛脷麓忙脫鲁脡盲脪脩戮颅虏禄卤禄脢鹿脫脙脕脣拢卢脣霉脪脭脪陋脰脴脨脗脫鲁脡盲脫脙禄搂脤卢碌脛脪鲁卤铆拢卢脦陋脫脙禄搂脤卢鲁脤脨貌脭脣脨脨脳枚潞脙脳录卤赂
+	Machine::Instance().InitUserPageTable();
+	FlushPageDirectory();
 	
 
 	Machine::Instance().LoadTaskRegister();
 	
-	/* 获取CMOS当前时间，设置系统时钟 */
+	/* 禄帽脠隆CMOS碌卤脟掳脢卤录盲拢卢脡猫脰脙脧碌脥鲁脢卤脰脫 */
 	struct SystemTime cTime;
 	CMOSTime::ReadCMOSTime(&cTime);
-	/* MakeKernelTime()计算出内核时间，从1970年1月1日0时至当前的秒数 */
+	/* MakeKernelTime()录脝脣茫鲁枚脛脷潞脣脢卤录盲拢卢麓脫1970脛锚1脭脗1脠脮0脢卤脰脕碌卤脟掳碌脛脙毛脢媒 */
 	Time::time = Utility::MakeKernelTime(&cTime);
 
-	/* 从CMOS中获取物理内存大小 */
+	/* 麓脫CMOS脰脨禄帽脠隆脦茂脌铆脛脷麓忙麓贸脨隆 */
 	unsigned short memSize = 0;	/* size in KB */
 	unsigned char lowMem, highMem;
 
-	/* 这里只是借用CMOSTime类中的ReadCMOSByte函数读取CMOS中物理内存大小信息 */
+	/* 脮芒脌茂脰禄脢脟陆猫脫脙CMOSTime脌脿脰脨碌脛ReadCMOSByte潞炉脢媒露脕脠隆CMOS脰脨脦茂脌铆脛脷麓忙麓贸脨隆脨脜脧垄 */
 	lowMem = CMOSTime::ReadCMOSByte(CMOSTime::EXTENDED_MEMORY_ABOVE_1MB_LOW);
 	highMem = CMOSTime::ReadCMOSByte(CMOSTime::EXTENDED_MEMORY_ABOVE_1MB_HIGH);
 	memSize = (highMem << 8) + lowMem;
 
-	/* 加上1MB以下物理内存区域，计算总内存容量，以字节为单位的内存大小 */
+	/* 录脫脡脧1MB脪脭脧脗脦茂脌铆脛脷麓忙脟酶脫貌拢卢录脝脣茫脳脺脛脷麓忙脠脻脕驴拢卢脪脭脳脰陆脷脦陋碌楼脦禄碌脛脛脷麓忙麓贸脨隆 */
 	memSize += 1024; /* KB */
 	PageManager::PHY_MEM_SIZE = memSize * 1024;
 	UserPageManager::USER_PAGE_POOL_SIZE = PageManager::PHY_MEM_SIZE - UserPageManager::USER_PAGE_POOL_START_ADDR;
 
-	/* 真正操作系统内核初始化逻辑	 */
+	/* 脮忙脮媒虏脵脳梅脧碌脥鲁脛脷潞脣鲁玫脢录禄炉脗脽录颅	 */
 	Kernel::Instance().Initialize();	
 	Kernel::Instance().GetProcessManager().SetupProcessZero();
 	isInit = true;
@@ -274,12 +313,12 @@ extern "C" void next()
 	// Diagnose::Write("test \n");
 
     // ========================================
-    // 添加调试器测试代码 -2253217 DMY
+    // 脤铆录脫碌梅脢脭脝梅虏芒脢脭麓煤脗毛 -2253217 DMY
     // ========================================
 	// Diagnose::Write("\n[DEBUG] Entering debugger manually...\n");
     // debugger_enter();
 
-	/*  初始化rootDirInode和用户当前工作目录，以便NameI()正常工作 */
+	/*  鲁玫脢录禄炉rootDirInode潞脥脫脙禄搂碌卤脟掳鹿陇脳梅脛驴脗录拢卢脪脭卤茫NameI()脮媒鲁拢鹿陇脳梅 */
 	FileManager& fileMgr = Kernel::Instance().GetFileManager();
 
 	//fileMgr.rootDirInode = g_InodeTable.IGet(DeviceManager::ROOTDEV, FileSystem::ROOTINO);
@@ -292,7 +331,7 @@ extern "C" void next()
 	us.u_cdir->i_flag &= (~Inode::ILOCK);
 	strcpy(us.u_curdir, "/");
 
-	/* 打开TTy设备 */
+	/* 麓貌驴陋TTy脡猫卤赂 */
 	int fd_tty = lib_open("/dev/tty1", File::FREAD);
 
 	if ( fd_tty != 0 )
@@ -306,19 +345,14 @@ extern "C" void next()
 	}
 	Diagnose::TraceOn();
 
-	// 启动 GDB 调试器
-	// Diagnose::Write("\n===================================\n");
-	// Diagnose::Write("Starting GDB Debugger...\n");
-	// Diagnose::Write("===================================\n\n");
-	
-	// 初始化并启动调试器（会阻塞在这里等待 GDB 连接）
+// #ifdef KERNEL_GDB_AUTOSTART
 	debug_start();
-
+// #endif
+	
 #ifdef ENABLE_SPLASH
 	// show splash.
 	splash();
 #endif
-
 
 	unsigned char* runtimeSrc = (unsigned char*)runtime;
 	unsigned char* runtimeDst = 0x00000000;
@@ -329,30 +363,35 @@ extern "C" void next()
 
     //us.u_MemoryDescriptor.Release();
 
-	int pid = Kernel::Instance().GetProcessManager().NewProc();         /* 0#进程创建1#进程 */
-	if( 0 == pid )     /* 0#进程执行Sched()，成为系统中永远运行在核心态的唯一进程  */
+	int pid = Kernel::Instance().GetProcessManager().NewProc();         /* 0#陆酶鲁脤麓麓陆篓1#陆酶鲁脤 */
+	if( 0 == pid )     /* 0#陆酶鲁脤脰麓脨脨Sched()拢卢鲁脡脦陋脧碌脥鲁脰脨脫脌脭露脭脣脨脨脭脷潞脣脨脛脤卢碌脛脦篓脪禄陆酶鲁脤  */
 	{
 		us.u_procp->p_ttyp = NULL;
 		Kernel::Instance().GetProcessManager().Sched();
 	}
-	else               /* 1#进程执行应用程序shell.exe,是普通进程  */
+	else               /* 1#陆酶鲁脤脰麓脨脨脫娄脫脙鲁脤脨貌shell.exe,脢脟脝脮脥篓陆酶鲁脤  */
 	{
-		Machine::Instance().InitUserPageTable();      //这是直接写0x202,0x203页表，没相对虚实地址映射表一样okay！
+		Machine::Instance().InitUserPageTable();      //脮芒脢脟脰卤陆脫脨麓0x202,0x203脪鲁卤铆拢卢脙禄脧脿露脭脨茅脢碌碌脴脰路脫鲁脡盲卤铆脪禄脩霉okay拢隆
 		FlushPageDirectory();
 
 		CRT::ClearScreen();
 
-		/* 1#进程回用户态，执行exec("shell.exe")系统调用*/
+		/* 1#陆酶鲁脤禄脴脫脙禄搂脤卢拢卢脰麓脨脨exec("shell.exe")脧碌脥鲁碌梅脫脙*/
 		MoveToUserStack();
-		__asm ("call *%%eax" :: "a"((unsigned long)ExecShell - 0xC0000000));   //要访问用户栈，所以一定要有映射！
+		__asm ("call *%%eax" :: "a"((unsigned long)ExecShell - 0xC0000000));   //脪陋路脙脦脢脫脙禄搂脮禄拢卢脣霉脪脭脪禄露篓脪陋脫脨脫鲁脡盲拢隆
 	}
 }
 
 
 extern "C" void kernelBridge() {  // called by sector2.asm
 	initBss();
+
+// #ifdef EARLY_BOOT_GDB
+// 	Diagnose::Write("[BOOTDBG] Early kernelBridge debugger handoff.\n");
+// 	debug_start();
+// #endif
+
 	callCtors();
-	// debug_start();
 	main0();
 	callDtors();
 }

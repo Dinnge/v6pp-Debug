@@ -1,11 +1,9 @@
-// GDB 寄存器管理头文件
-
 #ifndef GDB_REGISTERS_H
 #define GDB_REGISTERS_H
 
 #include "../../libyrosstd/sys/types.h"
+#include "../../include/Regs.h"
 
-// x86 寄存器定义
 typedef struct {
     uint32_t eax;
     uint32_t ecx;
@@ -25,9 +23,6 @@ typedef struct {
     uint32_t gs;
 } GDBRegisters;
 
-// GDB 寄存器顺序（按照 GDB 协议要求的顺序）
-// 顺序: EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI,
-//       EIP, EFLAGS, CS, SS, DS, ES, FS, GS
 #define GDB_REG_EAX   0
 #define GDB_REG_ECX   1
 #define GDB_REG_EDX   2
@@ -46,25 +41,21 @@ typedef struct {
 #define GDB_REG_GS    15
 #define GDB_REG_COUNT 16
 
-// 寄存器管理函数
 void gdb_registers_init(void);
 void gdb_registers_save(void);
 void gdb_registers_restore(void);
 void gdb_registers_invalidate(void);
+void gdb_registers_bind_trap_frame(struct pt_regs* regs, struct pt_context* context);
+void gdb_registers_commit_to_trap_frame(void);
 
-// 获取当前寄存器
 GDBRegisters* gdb_get_registers(void);
-
-// 设置寄存器值
 void gdb_set_register(int reg_num, uint32_t value);
 uint32_t gdb_get_register_value(int reg_num);
 int is_reg_context_valid(void);
 
-// 将寄存器转换为 GDB 格式字符串
 void gdb_registers_to_string(char* buffer, int buffer_size);
 
-// 单步执行控制
 void gdb_set_single_step(void);
 void gdb_clear_single_step(void);
 
-#endif // GDB_REGISTERS_H
+#endif

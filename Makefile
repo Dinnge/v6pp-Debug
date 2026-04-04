@@ -1,6 +1,6 @@
-# # Unix V6++ Tongji ¶¥²ã¹¹½¨½Å±¾
+# # Unix V6++ Tongji Â¶Â¥Â²Ã£Â¹Â¹Â½Â¨Â½Ã…Â±Â¾
 # #
-# # ´´½¨ÓÚ 2024Äê4ÔÂ28ÈÕ ÉÏº£ÊÐ¼Î¶¨Çø
+# # Â´Â´Â½Â¨Ã“Ãš 2024Ã„Ãª4Ã”Ã‚28ÃˆÃ• Ã‰ÃÂºÂ£ÃŠÃÂ¼ÃŽÂ¶Â¨Ã‡Ã¸
 # # by 2051565 GTY
 
 # .DEFAULT_GOAL := all
@@ -85,6 +85,8 @@
 # build-boot-debug: prepare
 # 	mkdir -p target/objs/boot
 # 	nasm -f bin src/boot/boot.asm -o target/objs/boot/boot_debug.bin -DGDB_DEBUG
+# 	nasm -f elf32 src/boot/boot.asm -o target/objs/boot/boot_debug.o -DGDB_DEBUG
+# 	ld -m elf_i386 -Ttext 0x7c00 -e start -nostdlib -o target/objs/boot/boot_debug.elf target/objs/boot/boot_debug.o
 
 # .PHONY: build-full
 # build-full: prepare build-lib build-programs build-shell build-kernel
@@ -135,7 +137,7 @@
 
 # QEMU_DISK := -boot c -drive file=target/c.img,if=ide,index=0,media=disk,format=raw
 
-# # ´®¿Ú GDB µ÷ÊÔÅäÖÃ
+# # Â´Â®Â¿Ãš GDB ÂµÃ·ÃŠÃ”Ã…Ã¤Ã–Ãƒ
 # QEMU_SERIAL_GDB := -serial tcp::1234,server,nowait
 
 # QEMU_BUILTIN_GDB := -gdb tcp::2005 -S
@@ -152,7 +154,7 @@
 
 # .PHONY: qemug-boot-no-rebuild
 # qemug-boot-no-rebuild:
-# 	$(QEMU) $(QEMU_DISK) $(QEMU_BOOT_GDB)
+# 	$(QEMU) $(QEMU_DISK) $(QEMU_BOOT_STUB)
 
 # .PHONY: qemu
 # qemu: deploy-full qemu-no-rebuild
@@ -193,10 +195,10 @@
 # gdb-boot:
 # 	@echo "=========================================="
 # 	@echo "Starting GDB for Bootloader debugging..."
-# 	@echo "Connect with: target remote localhost:1235"
+# 	@echo "Connect with: target remote localhost:1234"
 # 	@echo "Set breakpoint: break *0x7c00"
 # 	@echo "=========================================="
-# 	gdb -ex "target remote localhost:1235" -ex "set architecture i8086"
+# 	gdb -ex "target remote localhost:1234" -ex "set architecture i8086"
 
 # .PHONY: debug-boot
 # debug-boot:
@@ -207,11 +209,11 @@
 # 	echo "Waiting for QEMU to start..."; \
 # 	sleep 2; \
 # 	echo "Starting GDB..."; \
-# 	gdb -ex "target remote localhost:1235" -ex "set architecture i8086"; \
+# 	gdb -ex "target remote localhost:1234" -ex "set architecture i8086"; \
 # 	kill $$QEMU_PID 2>/dev/null || true
-# Unix V6++ Tongji ¶¥²ã¹¹½¨½Å±¾
+# Unix V6++ Tongji Â¶Â¥Â²Ã£Â¹Â¹Â½Â¨Â½Ã…Â±Â¾
 #
-# ´´½¨ÓÚ 2024Äê4ÔÂ28ÈÕ ÉÏº£ÊÐ¼Î¶¨Çø
+# Â´Â´Â½Â¨Ã“Ãš 2024Ã„Ãª4Ã”Ã‚28ÃˆÃ• Ã‰ÃÂºÂ£ÃŠÃÂ¼ÃŽÂ¶Â¨Ã‡Ã¸
 # by 2051565 GTY
 
 .DEFAULT_GOAL := all
@@ -241,10 +243,16 @@ help:
 	@echo "    build and launch unix-v6pp using QEMU (with Serial GDB)"
 	@echo "- make qemug-serial-log"
 	@echo "    build and launch unix-v6pp using QEMU (with Serial GDB + output log)"
+	@echo "- make gdb-serial"
+	@echo "    attach GDB to the kernel-stage serial debugger on localhost:1234"
 	@echo "- make build-boot-debug"
 	@echo "    build bootloader with GDB debug support"
 	@echo "- make qemug-boot"
 	@echo "    launch unix-v6pp with Bootloader GDB debug"
+	@echo "- make gdb-boot-lifecycle"
+	@echo "    launch GDB with boot lifecycle debug script"
+	@echo "- make debug-boot-lifecycle"
+	@echo "    start QEMU boot debug and attach scripted GDB session"
 
 
 .PHONY: prepare
@@ -282,7 +290,21 @@ build-shell: prepare
 .PHONY: build-kernel
 build-kernel: prepare
 	mkdir -p build/kernel && cd build/kernel \
-	&& cmake -G"Ninja" ../../src -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && \
+	&& cmake -G"Ninja" ../../src -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DEARLY_BOOT_GDB=OFF && \
+	cmake --build . -- -j 1
+
+
+.PHONY: build-kernel-debug
+build-kernel-debug: prepare
+	mkdir -p build/kernel && cd build/kernel \
+	&& cmake -G"Ninja" ../../src -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DEARLY_BOOT_GDB=ON && \
+	cmake --build . -- -j 1
+
+
+.PHONY: build-kernel-serial-debug
+build-kernel-serial-debug: prepare
+	mkdir -p build/kernel && cd build/kernel \
+	&& cmake -G"Ninja" ../../src -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DEARLY_BOOT_GDB=OFF -DKERNEL_GDB_AUTOSTART=ON && \
 	cmake --build . -- -j 1
 
 
@@ -296,6 +318,8 @@ build-boot: prepare
 build-boot-debug: prepare
 	mkdir -p target/objs/boot
 	nasm -f bin src/boot/boot.asm -o target/objs/boot/boot_debug.bin -DGDB_DEBUG
+	nasm -f elf32 src/boot/boot.asm -o target/objs/boot/boot_debug.o -DGDB_DEBUG
+	ld -m elf_i386 -Ttext 0x7c00 -e start -nostdlib -o target/objs/boot/boot_debug.elf target/objs/boot/boot_debug.o
 
 
 .PHONY: build-full
@@ -303,7 +327,11 @@ build-full: prepare build-lib build-programs build-shell build-kernel
 
 
 .PHONY: build-full-debug
-build-full-debug: prepare build-lib build-programs build-shell build-kernel
+build-full-debug: prepare build-lib build-programs build-shell build-kernel-debug
+
+
+.PHONY: build-full-serial-debug
+build-full-serial-debug: prepare build-lib build-programs build-shell build-kernel-serial-debug
 
 
 .PHONY: deploy-full
@@ -322,12 +350,27 @@ deploy-full: build-full
 
 
 .PHONY: deploy-full-debug
-deploy-full-debug: build-full-debug
+deploy-full-debug: build-full-debug build-boot-debug
 	mkdir -p target/img-workspace
 	mkdir -p target/img-workspace/programs/bin
 	mkdir -p target/img-workspace/programs/etc
 	cp target/objs/kernel.bin target/img-workspace/
 	cp target/objs/boot/boot_debug.bin target/img-workspace/boot.bin
+	cp target/objs/apps/* target/img-workspace/programs/bin/
+	cp target/objs/Shell.exe target/img-workspace/programs/
+	cp tools/unix-v6pp-filesystem-editor/bin/* target/img-workspace/
+	cp tools/unixv6pp_splash/v6pp_splash.bmp target/img-workspace/programs/etc/
+	cd target/img-workspace && ./filescanner | ./fsedit c.img c
+	cp target/img-workspace/c.img target/
+
+
+.PHONY: deploy-full-serial-debug
+deploy-full-serial-debug: build-full-serial-debug build-boot
+	mkdir -p target/img-workspace
+	mkdir -p target/img-workspace/programs/bin
+	mkdir -p target/img-workspace/programs/etc
+	cp target/objs/kernel.bin target/img-workspace/
+	cp target/objs/boot/boot.bin target/img-workspace/
 	cp target/objs/apps/* target/img-workspace/programs/bin/
 	cp target/objs/Shell.exe target/img-workspace/programs/
 	cp tools/unix-v6pp-filesystem-editor/bin/* target/img-workspace/
@@ -353,17 +396,17 @@ QEMU_GDB += -gdb chardev:gdb0 -S
 
 QEMU_DISK := -boot c -drive file=target/c.img,if=ide,index=0,media=disk,format=raw
 
-# ´®¿Ú GDB µ÷ÊÔÅäÖÃ£¨Ê¹ÓÃ×Ö·ûÉè±¸£©
+# Â´Â®Â¿Ãš GDB ÂµÃ·ÃŠÃ”Ã…Ã¤Ã–ÃƒÂ£Â¨ÃŠÂ¹Ã“ÃƒÃ—Ã–Â·Ã»Ã‰Ã¨Â±Â¸Â£Â©
 QEMU_SERIAL_GDB := -chardev socket,id=serial0,host=0.0.0.0,port=1234,server=on,wait=off -device isa-serial,chardev=serial0
 
-# ´®¿Ú GDB µ÷ÊÔÅäÖÃ£¨Êä³öµ½ÎÄ¼þ£©
+# Â´Â®Â¿Ãš GDB ÂµÃ·ÃŠÃ”Ã…Ã¤Ã–ÃƒÂ£Â¨ÃŠÃ¤Â³Ã¶ÂµÂ½ÃŽÃ„Â¼Ã¾Â£Â©
 QEMU_SERIAL_GDB_LOG := -chardev socket,id=serial0,host=0.0.0.0,port=1234,server=on,wait=off -device isa-serial,chardev=serial0 -chardev file,id=serial1,path=target/serial.log -device isa-serial,chardev=serial1
 
-# QEMU ÄÚÖÃ GDB stub ÅäÖÃ£¨ÓÃÓÚµ÷ÊÔÄÚºË£©
+# QEMU Ã„ÃšÃ–Ãƒ GDB stub Ã…Ã¤Ã–ÃƒÂ£Â¨Ã“ÃƒÃ“ÃšÂµÃ·ÃŠÃ”Ã„ÃšÂºÃ‹Â£Â©
 QEMU_BUILTIN_GDB := -gdb tcp::2005 -S
 
-# Bootloader GDB µ÷ÊÔÅäÖÃ
-QEMU_BOOT_GDB := -serial tcp::1234,server,nowait -gdb tcp::1235 -S
+# Bootloader GDB ÂµÃ·ÃŠÃ”Ã…Ã¤Ã–Ãƒ
+QEMU_BOOT_STUB := -serial tcp::1234,server,nowait
 
 
 .PHONY: qemu-no-rebuild
@@ -378,7 +421,7 @@ qemug-no-rebuild:
 
 .PHONY: qemug-boot-no-rebuild
 qemug-boot-no-rebuild:
-	$(QEMU) $(QEMU_DISK) $(QEMU_BOOT_GDB)
+	$(QEMU) $(QEMU_DISK) $(QEMU_BOOT_STUB)
 
 
 .PHONY: qemu
@@ -390,7 +433,10 @@ qemug: deploy-full qemug-no-rebuild
 
 
 .PHONY: qemug-boot
-qemug-boot: deploy-full-debug qemug-boot-no-rebuild
+qemug-boot:
+	@$(MAKE) clean
+	@$(MAKE) deploy-full-debug
+	@$(MAKE) qemug-boot-no-rebuild
 
 
 .PHONY: clean
@@ -411,9 +457,8 @@ full: deploy-full
 qemug-serial-no-rebuild:
 	$(QEMU) $(QEMU_DISK) $(QEMU_SERIAL_GDB)
 
-
 .PHONY: qemug-serial
-qemug-serial: deploy-full qemug-serial-no-rebuild
+qemug-serial: deploy-full-serial-debug qemug-serial-no-rebuild
 
 .PHONY: qemug-builtin-no-rebuild
 qemug-builtin-no-rebuild:
@@ -422,25 +467,43 @@ qemug-builtin-no-rebuild:
 .PHONY: qemug-builtin
 qemug-builtin: deploy-full qemug-builtin-no-rebuild
 
-# ´®¿Ú GDB µ÷ÊÔ´øÈÕÖ¾Êä³ö
+# Â´Â®Â¿Ãš GDB ÂµÃ·ÃŠÃ”Â´Ã¸ÃˆÃ•Ã–Â¾ÃŠÃ¤Â³Ã¶
 .PHONY: qemug-serial-log-no-rebuild
 qemug-serial-log-no-rebuild:
 	mkdir -p target
 	$(QEMU) $(QEMU_DISK) $(QEMU_SERIAL_GDB_LOG)
 
 .PHONY: qemug-serial-log
-qemug-serial-log: deploy-full qemug-serial-log-no-rebuild
+qemug-serial-log: deploy-full-serial-debug qemug-serial-log-no-rebuild
 
 
-# Bootloader GDB µ÷ÊÔÏà¹ØÄ¿±ê
+.PHONY: gdb-serial
+gdb-serial: build-kernel-serial-debug
+	@echo "=========================================="
+	@echo "Starting GDB for kernel-stage serial debugging..."
+	@echo "Symbols: build/kernel/kernel.exe"
+	@echo "Connect with: target remote localhost:1234"
+	@echo "=========================================="
+	gdb build/kernel/kernel.exe -ex "target remote localhost:1234"
+
+
+# Bootloader GDB ÂµÃ·ÃŠÃ”ÃÃ Â¹Ã˜Ã„Â¿Â±Ãª
 .PHONY: gdb-boot
 gdb-boot:
 	@echo "=========================================="
 	@echo "Starting GDB for Bootloader debugging..."
-	@echo "Connect with: target remote localhost:1235"
+	@echo "Connect with: target remote localhost:1234"
 	@echo "Set breakpoint: break *0x7c00"
 	@echo "=========================================="
-	gdb -ex "target remote localhost:1235" -ex "set architecture i8086"
+	gdb -ex "target remote localhost:1234" -ex "set architecture i8086"
+
+.PHONY: gdb-boot-lifecycle
+gdb-boot-lifecycle: build-boot-debug
+	@echo "=========================================="
+	@echo "Starting GDB with boot lifecycle script..."
+	@echo "Script: tools/gdb/bootloader_lifecycle.gdb"
+	@echo "=========================================="
+	gdb -x tools/gdb/bootloader_lifecycle.gdb
 
 
 .PHONY: debug-boot
@@ -452,5 +515,17 @@ debug-boot:
 	echo "Waiting for QEMU to start..."; \
 	sleep 2; \
 	echo "Starting GDB..."; \
-	gdb -ex "target remote localhost:1235" -ex "set architecture i8086"; \
+	gdb -ex "target remote localhost:1234" -ex "set architecture i8086"; \
+	kill $$QEMU_PID 2>/dev/null || true
+
+.PHONY: debug-boot-lifecycle
+debug-boot-lifecycle:
+	@echo "Starting QEMU from disk in background..."
+	@make qemug-boot > /tmp/qemu.log 2>&1 & \
+	QEMU_PID=$$!; \
+	echo "QEMU PID: $$QEMU_PID"; \
+	echo "Waiting for QEMU to start..."; \
+	sleep 2; \
+	echo "Starting scripted GDB session..."; \
+	make gdb-boot-lifecycle; \
 	kill $$QEMU_PID 2>/dev/null || true

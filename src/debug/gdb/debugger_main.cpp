@@ -7,11 +7,20 @@
 #include "gdb_breakpoints.h"
 #include "gdb_serial.h"
 #include "../../include/Video.h"
+#include "../../include/Assembly.h"
 
 
 // 调试器全局状态
 extern "C" DebuggerState g_debugger = {0};
 static Socket g_listen_socket = (Socket)-1;
+
+int debugger_is_target_running(void) {
+    return g_debugger.target_running;
+}
+
+void debugger_set_target_running(int running) {
+    g_debugger.target_running = running ? 1 : 0;
+}
 
 // 初始化调试器
 int debugger_init(void) {
@@ -19,6 +28,9 @@ int debugger_init(void) {
     g_debugger.listening = 1;
     g_debugger.connected = 0;
     g_debugger.buffer_pos = 0;
+    g_debugger.resume_requested = 0;
+    g_debugger.mode = DEBUG_MODE_NONE;
+    g_debugger.target_running = 0;
 
     // 初始化寄存器管理
     gdb_registers_init();
@@ -103,6 +115,9 @@ void debugger_main(void) {
     char packet_buffer[DEBUG_BUFFER_SIZE];
     int debug_cycle = 0;
     int waiting_count = 0;
+
+    debugger_set_target_running(0);
+    serial_set_rx_interrupt_enabled(0);
     
     // 主循环
     while (g_debugger.enabled) {
@@ -110,10 +125,10 @@ void debugger_main(void) {
         if (!g_debugger.connected) {
             waiting_count++;
             
-            // 每1000次循环输出一次等待信息
-            if (waiting_count % 100000 == 0) {
-                Diagnose::Write("Waiting for GDB connection... (Listening on COM1)\n");
-            }
+            // // 每1000次循环输出一次等待信息
+            // if (waiting_count % 100000 == 0) {
+            //     Diagnose::Write("Waiting for GDB connection... (Listening on COM1)\n");
+            // }
             
             int packet_len = serial_recv_packet_with_interrupt(packet_buffer, DEBUG_BUFFER_SIZE);
 
@@ -150,7 +165,7 @@ void debugger_main(void) {
             }
             
             // 短暂延迟避免CPU占用过高
-            for (volatile int i = 0; i < 50000; i++);
+            for (volatile int i = 0; i < 5000; i++);
             continue;
         }
         
@@ -177,9 +192,21 @@ void debugger_main(void) {
                 
                 output_msg[pos++] = '\n';
                 output_msg[pos] = '\0';
-                
+
+                            // // 在恢复到被调试程序前，确保允许外部中断
+                            // X86Assembly::STI();
+                            // g_debugger.resume_requested = 0;
+                            // return;
+
                 Diagnose::Write(output_msg);
                 
+                if (packet_len == 1 && packet_buffer[0] == 0x03) {
+                    Diagnose::Write("[GDB] 处理Ctrl+C中断请求\n");
+                    // 触发调试异常，使程序重新进入调试器
+                    asm volatile("int $0x01");
+                    continue;
+                }
+
                 // 解析命令并处理
                 GDBCommand cmd = gdb_parse_command(packet_buffer);
                 switch (cmd) {
@@ -231,10 +258,12 @@ void debugger_main(void) {
                         Diagnose::Write("Sent OK response for unknown command\n");
                         break;
                 }
-                // 如果收到继续/单步请求，退出调试循环以恢复执行
                 if (g_debugger.resume_requested) {
+                    Diagnose::Write("Resuming target execution...\n");
                     g_debugger.resume_requested = 0;
-                    Diagnose::Write("Resuming execution as requested by GDB\n");
+                    debugger_set_target_running(1);
+                    serial_set_rx_interrupt_enabled(1);
+                    X86Assembly::STI();
                     return;
                 }
             } else if (packet_len < 0) {
@@ -253,138 +282,58 @@ void debugger_main(void) {
     Diagnose::Write("GDB Debugger Main Loop Ended\n");
 }
 
-// 调试器主循环 - 专注于握手协议
-// void debugger_main(void) {
-//     Diagnose::Write("Debugger main loop started (handshake mode)\n");
-
-//     char packet_buffer[DEBUG_BUFFER_SIZE];
-//     int handshake_completed = 0;
-
-//     while (g_debugger.enabled) {
-//         // 阶段1: 等待GDB连接
-//         if (!g_debugger.connected) {
-//             Diagnose::Write("Waiting for GDB connection...\n");
+void monitor_execution_mode(void) {
+    Diagnose::Write("[MONITOR] 进入执行监控模式\n");
+    
+    // 恢复寄存器，让程序开始执行
+    if (is_reg_context_valid()) {
+        gdb_registers_restore();
+    }
+    
+    // 使用简单的计数器而不是系统时间
+    uint32_t check_counter = 0;
+    const uint32_t CHECK_INTERVAL = 10000;  // 检查间隔（循环次数）
+    
+    // 关键：这里不退出，而是循环检查中断
+    while (1) {
+        check_counter++;
+        
+        // 定期检查串口是否有中断
+        if (check_counter % CHECK_INTERVAL == 0) {
+            check_counter = 0;
             
-//             // 检查是否有数据到达（表示GDB尝试连接）
-//             if (gdb_socket_readable(g_listen_socket) > 0) {
-//                 Socket client = gdb_socket_accept(g_listen_socket);
-//                 if (client != (Socket)-1) {
-//                     gdb_set_client_socket(client);
-//                     g_debugger.connected = 1;
-//                     Diagnose::Write("GDB connection detected! Starting handshake...\n");
-//                 }
-//             }
-            
-//             // 短暂延迟避免过快的循环
-//             for (volatile int i = 0; i < 10000000000; i++);
-//             continue;
-//         }
-
-//         // 阶段2: 握手协议
-//         if (g_debugger.connected && !handshake_completed) {
-//             Socket client = gdb_get_client_socket();
-            
-//             // 步骤1: 发送初始ACK响应GDB连接
-//             Diagnose::Write("Sending initial ACK to GDB...\n");
-//             char ack = '+';
-//             gdb_socket_send(client, &ack, 1);
-            
-//             // 步骤2: 等待GDB的初始查询包（qSupported）
-//             Diagnose::Write("Waiting for GDB initial query (qSupported)...\n");
-//             int packet_len = gdb_recv_packet(packet_buffer, DEBUG_BUFFER_SIZE);
-            
-//             if (packet_len > 0) {
-//                 Diagnose::Write("Received initial packet: ");
-//                 Diagnose::Write(packet_buffer);
-//                 Diagnose::Write("\n");
-                
-//                 // 检查是否是qSupported查询（自定义字符串比较）
-//                 int is_qSupported = 1;
-//                 const char* qSupported = "qSupported";
-//                 for (int i = 0; i < 10 && qSupported[i] != '\0'; i++) {
-//                     if (packet_buffer[i] != qSupported[i]) {
-//                         is_qSupported = 0;
-//                         break;
-//                     }
-//                 }
-                
-//                 if (packet_buffer[0] == 'q' && is_qSupported) {
-//                     Diagnose::Write("Processing qSupported query...\n");
+            // 检查Ctrl+C中断（非阻塞）
+            int ch = serial_inb_nb();
+            if (ch >= 0) {
+                unsigned char c = (unsigned char)ch;
+                if (c == 0x03) {  // Ctrl+C
+                    Diagnose::Write("[MONITOR] 检测到Ctrl+C中断\n");
                     
-//                     // 发送简单的qSupported响应
-//                     char response[] = "PacketSize=4000;qXfer:features:read+";
-//                     gdb_send_packet(response);
-//                     Diagnose::Write("Sent qSupported response\n");
+                    // 触发调试异常，使程序重新进入调试器
+                    asm volatile("int $0x01");
                     
-//                     // 步骤3: 等待GDB确认（ACK）
-//                     char ack_buffer[2];
-//                     int ack_len = gdb_socket_recv(client, ack_buffer, 1);
-//                     if (ack_len > 0 && ack_buffer[0] == '+') {
-//                         Diagnose::Write("GDB acknowledged our response\n");
-//                         handshake_completed = 1;
-//                         Diagnose::Write("=== GDB HANDSHAKE COMPLETED SUCCESSFULLY ===\n");
-//                         Diagnose::Write("Debugger is now ready for normal operation\n");
-//                     } else {
-//                         Diagnose::Write("Handshake failed: No ACK from GDB\n");
-//                     }
-//                 } else {
-//                     Diagnose::Write("Handshake failed: Expected qSupported, got: ");
-//                     Diagnose::Write(packet_buffer);
-//                     Diagnose::Write("\n");
-//                 }
-//             } else {
-//                 Diagnose::Write("Handshake failed: No initial packet received\n");
-//             }
-            
-//             // 如果握手失败，重置连接状态
-//             if (!handshake_completed) {
-//                 g_debugger.connected = 0;
-//                 gdb_socket_close(client);
-//                 gdb_set_client_socket((Socket)-1);
-//                 Diagnose::Write("Handshake failed, resetting connection state\n");
-//             }
-            
-//             continue;
-//         }
-
-//         // 阶段3: 握手完成后的正常调试操作
-//         if (handshake_completed) {
-//             Socket client = gdb_get_client_socket();
-//             int packet_len = gdb_recv_packet(packet_buffer, DEBUG_BUFFER_SIZE);
-
-//             if (packet_len > 0) {
-//                 Diagnose::Write("[DEBUG] Received command: ");
-//                 Diagnose::Write(packet_buffer);
-//                 Diagnose::Write("\n");
-
-//                 // 简单响应测试命令
-//                 if (packet_buffer[0] == 'g') {
-//                     // 寄存器读取命令
-//                     Diagnose::Write("Handling register read command\n");
-//                     gdb_send_packet((char*)"0000000000000000000000000000000000000000000000000000000000000000");
-//                 } else if (packet_buffer[0] == '?') {
-//                     // 信号查询命令
-//                     Diagnose::Write("Handling signal query command\n");
-//                     gdb_send_packet((char*)"S05");
-//                 } else {
-//                     // 其他命令返回OK
-//                     Diagnose::Write("Sending OK response\n");
-//                     gdb_send_packet((char*)"OK");
-//                 }
-//             } else if (packet_len < 0) {
-//                 // 连接断开
-//                 g_debugger.connected = 0;
-//                 handshake_completed = 0;
-//                 gdb_socket_close(client);
-//                 gdb_set_client_socket((Socket)-1);
-//                 Diagnose::Write("GDB client disconnected\n");
-//             }
-//         }
-//     }
-
-//     Diagnose::Write("Debugger main loop ended\n");
-// }
-
+                    // 注意：这里不要break，因为触发异常后
+                    // 程序会通过异常处理程序重新进入debugger_main
+                    // 这个函数会被中断，控制权转移
+                    return;
+                }
+            }
+        }
+        
+        // 检查程序是否因异常重新进入调试器
+        // 如果有新的调试会话开始，resume_requested会被重置
+        if (!g_debugger.resume_requested) {
+            // 程序遇到了新的异常（断点、单步等），已重新进入debugger_main
+            Diagnose::Write("[MONITOR] 检测到新异常，程序已重新进入调试\n");
+            break;
+        }
+        
+        // 短暂延迟避免忙等待
+        for (volatile int i = 0; i < 100; i++);
+    }
+    
+    Diagnose::Write("[MONITOR] 退出监控模式\n");
+}
 
 // 获取调试器状态
 DebuggerState* debugger_get_state(void) {
@@ -392,27 +341,20 @@ DebuggerState* debugger_get_state(void) {
 }
 
 // 调试器入口函数（异常发生时调用）
-void debugger_enter(void) {
-    Diagnose::Write("[DEBUGGER] 进入调试器，异常发生\n");
-    
-    // 1. 保存当前寄存器状态到调试上下文
-    gdb_registers_save();
-    Diagnose::Write("[DEBUGGER] 寄存器状态已保存\n");
-    
-    // 2. 发送停止信号给GDB（S05 = SIGTRAP）
+void debugger_enter(struct pt_regs* regs, struct pt_context* context) {
+    Diagnose::Write("[DEBUGGER] Entered from trap\n");
+
+    debugger_set_target_running(0);
+    serial_set_rx_interrupt_enabled(0);
+
+    gdb_registers_invalidate();
+    gdb_registers_bind_trap_frame(regs, context);
+
     gdb_send_packet("S05");
-    Diagnose::Write("[DEBUGGER] 已通知GDB程序停止\n");
-    
-    // 3. 重置调试器状态
     g_debugger.resume_requested = 0;
-    g_debugger.connected = 1;  // 假设GDB已连接
-    
-    // 4. 进入调试器主循环
+
     debugger_main();
-    
-    // 5. 调试循环退出后的处理
-    Diagnose::Write("[DEBUGGER] 调试循环结束，准备恢复执行\n");
-    
-    // 注意：寄存器恢复应该在debugger_main内部处理
-    // 因为continue/step命令会在debugger_main中调用g_registers_restore()
+
+    gdb_registers_commit_to_trap_frame();
+    Diagnose::Write("[DEBUGGER] Leaving trap debugger\n");
 }

@@ -1,249 +1,32 @@
-// // GDB ¼Ä´æÆ÷¹ÜÀíÊµÏÖ
-
-// #include "gdb_registers.h"
-// #include "../../include/Video.h"
-
-// // È«¾Ö¼Ä´æÆ÷ÉÏÏÂÎÄ
-// static GDBRegisters g_reg_context;
-
-// // Ê®Áù½øÖÆ×Ö·û±í
-// static const char* hex_chars = "0123456789abcdef";
-
-// // ³õÊ¼»¯¼Ä´æÆ÷
-// void gdb_registers_init(void) {
-//     // ÇåÁãËùÓĞ¼Ä´æÆ÷
-//     for (size_t i = 0; i < sizeof(GDBRegisters); i++) {
-//         ((char*)&g_reg_context)[i] = 0;
-//     }
-// }
-
-// // ±£´æµ±Ç°¼Ä´æÆ÷£¨Ê¹ÓÃ»ã±à£©
-// void gdb_registers_save(void) {
-//     // Ìí¼ÓÕï¶ÏÊä³ö
-//     Diagnose::Write("[DEBUG] gdb_registers_save called\n");
-    
-//     // ¼òµ¥µÄ¼Ä´æÆ÷±£´æ£¬±ÜÃâÎ£ÏÕµÄ¶ÑÕ»²Ù×÷
-//     uint32_t esp_val, ebp_val;
-    
-//     __asm__ volatile (
-//         "movl %%eax, %0\n\t"
-//         "movl %%ecx, %1\n\t"
-//         "movl %%edx, %2\n\t"
-//         "movl %%ebx, %3\n\t"
-//         "movl %%esp, %4\n\t"
-//         "movl %%ebp, %5\n\t"
-//         "movl %%esi, %6\n\t"
-//         "movl %%edi, %7"
-//         : "=m"(g_reg_context.eax), "=m"(g_reg_context.ecx),
-//           "=m"(g_reg_context.edx), "=m"(g_reg_context.ebx),
-//           "=m"(esp_val), "=m"(ebp_val),
-//           "=m"(g_reg_context.esi), "=m"(g_reg_context.edi)
-//         : : "memory"
-//     );
-    
-//     // ±£´æESPºÍEBP
-//     g_reg_context.esp = esp_val;
-//     g_reg_context.ebp = ebp_val;
-    
-//     // °²È«µØ»ñÈ¡EIP£ºÍ¨¹ı¶ÁÈ¡µ÷ÓÃÕßµÄ·µ»ØµØÖ·
-//     // ×¢Òâ£ºÕâ¼ÙÉèº¯ÊıÊÇÍ¨¹ıcallÖ¸Áîµ÷ÓÃµÄ
-//     // ¶ÔÓÚÒì³£´¦Àí£¬Õâ²»Ò»¶¨ÕıÈ·£¬µ«±Èpop°²È«
-//     uint32_t eip_val = 0;
-//     if (esp_val > 0x1000 && esp_val < 0xFFFFFFFF - 4) {
-//         // ³¢ÊÔ¶ÁÈ¡·µ»ØµØÖ·£¨ÔÚESPÖ¸ÏòµÄÎ»ÖÃ£©
-//         eip_val = *((uint32_t*)esp_val);
-//     }
-//     g_reg_context.eip = eip_val;
-    
-//     // »ñÈ¡EFLAGS
-//     uint32_t eflags_val;
-//     __asm__ volatile (
-//         "pushfl\n\t"
-//         "popl %0"
-//         : "=r"(eflags_val)
-//         : : "memory"
-//     );
-//     g_reg_context.eflags = eflags_val;
-    
-//     // »ñÈ¡¶Î¼Ä´æÆ÷
-//     uint32_t cs_val, ss_val, ds_val, es_val, fs_val, gs_val;
-//     __asm__ volatile (
-//         "movw %%cs, %w0\n\t"
-//         "movw %%ss, %w1\n\t"
-//         "movw %%ds, %w2\n\t"
-//         "movw %%es, %w3\n\t"
-//         "movw %%fs, %w4\n\t"
-//         "movw %%gs, %w5"
-//         : "=r"(cs_val), "=r"(ss_val), "=r"(ds_val), 
-//           "=r"(es_val), "=r"(fs_val), "=r"(gs_val)
-//         : : "memory"
-//     );
-    
-//     // Ö»±£´æµÍ16Î»£¨¶ÎÑ¡Ôñ×Ó£©
-//     g_reg_context.cs = cs_val & 0xFFFF;
-//     g_reg_context.ss = ss_val & 0xFFFF;
-//     g_reg_context.ds = ds_val & 0xFFFF;
-//     g_reg_context.es = es_val & 0xFFFF;
-//     g_reg_context.fs = fs_val & 0xFFFF;
-//     g_reg_context.gs = gs_val & 0xFFFF;
-    
-//     Diagnose::Write("[DEBUG] gdb_registers_save completed\n");
-// }
-
-// // »Ö¸´¼Ä´æÆ÷
-// void gdb_registers_restore(void) {
-//     __asm__ volatile (
-//         "movl %0, %%eax\n\t"
-//         "movl %1, %%ecx\n\t"
-//         "movl %2, %%edx\n\t"
-//         "movl %3, %%ebx\n\t"
-//         "movl %4, %%esp\n\t"
-//         "movl %5, %%ebp\n\t"
-//         "movl %6, %%esi\n\t"
-//         "movl %7, %%edi\n\t"
-//         "movl %9, %%eax\n\t"
-//         "pushl %%eax\n\t"
-//         "popfl\n\t"
-//         "pushl %8\n\t"
-//         "ret"
-//         : : "m"(g_reg_context.eax), "m"(g_reg_context.ecx),
-//             "m"(g_reg_context.edx), "m"(g_reg_context.ebx),
-//             "m"(g_reg_context.esp), "m"(g_reg_context.ebp),
-//             "m"(g_reg_context.esi), "m"(g_reg_context.edi),
-//             "m"(g_reg_context.eip), "m"(g_reg_context.eflags),
-//             "m"(g_reg_context.cs), "m"(g_reg_context.ss),
-//             "m"(g_reg_context.ds), "m"(g_reg_context.es),
-//             "m"(g_reg_context.fs), "m"(g_reg_context.gs)
-//         : "ax", "cx", "dx", "bx", "si", "di", "memory"
-//     );
-// }
-
-// // »ñÈ¡µ±Ç°¼Ä´æÆ÷
-// GDBRegisters* gdb_get_registers(void) {
-//     return &g_reg_context;
-// }
-
-// // ÉèÖÃ¼Ä´æÆ÷Öµ
-// void gdb_set_register(int reg_num, uint32_t value) {
-//     switch (reg_num) {
-//         case GDB_REG_EAX:   g_reg_context.eax = value; break;
-//         case GDB_REG_ECX:   g_reg_context.ecx = value; break;
-//         case GDB_REG_EDX:   g_reg_context.edx = value; break;
-//         case GDB_REG_EBX:   g_reg_context.ebx = value; break;
-//         case GDB_REG_ESP:   g_reg_context.esp = value; break;
-//         case GDB_REG_EBP:   g_reg_context.ebp = value; break;
-//         case GDB_REG_ESI:   g_reg_context.esi = value; break;
-//         case GDB_REG_EDI:   g_reg_context.edi = value; break;
-//         case GDB_REG_EIP:   g_reg_context.eip = value; break;
-//         case GDB_REG_EFLAGS: g_reg_context.eflags = value; break;
-//         case GDB_REG_CS:    g_reg_context.cs = value; break;
-//         case GDB_REG_SS:    g_reg_context.ss = value; break;
-//         case GDB_REG_DS:    g_reg_context.ds = value; break;
-//         case GDB_REG_ES:    g_reg_context.es = value; break;
-//         case GDB_REG_FS:    g_reg_context.fs = value; break;
-//         case GDB_REG_GS:    g_reg_context.gs = value; break;
-//     }
-// }
-
-// // »ñÈ¡¼Ä´æÆ÷Öµ
-// uint32_t gdb_get_register_value(int reg_num) {
-//     switch (reg_num) {
-//         case GDB_REG_EAX:   return g_reg_context.eax;
-//         case GDB_REG_ECX:   return g_reg_context.ecx;
-//         case GDB_REG_EDX:   return g_reg_context.edx;
-//         case GDB_REG_EBX:   return g_reg_context.ebx;
-//         case GDB_REG_ESP:   return g_reg_context.esp;
-//         case GDB_REG_EBP:   return g_reg_context.ebp;
-//         case GDB_REG_ESI:   return g_reg_context.esi;
-//         case GDB_REG_EDI:   return g_reg_context.edi;
-//         case GDB_REG_EIP:   return g_reg_context.eip;
-//         case GDB_REG_EFLAGS: return g_reg_context.eflags;
-//         case GDB_REG_CS:    return g_reg_context.cs;
-//         case GDB_REG_SS:    return g_reg_context.ss;
-//         case GDB_REG_DS:    return g_reg_context.ds;
-//         case GDB_REG_ES:    return g_reg_context.es;
-//         case GDB_REG_FS:    return g_reg_context.fs;
-//         case GDB_REG_GS:    return g_reg_context.gs;
-//         default: return 0;
-//     }
-// }
-
-// // ½«×Ö½Ú×ª»»ÎªÁ½¸öÊ®Áù½øÖÆ×Ö·û
-// static void byte_to_hex(uint8_t byte, char* out) {
-//     out[0] = hex_chars[(byte >> 4) & 0x0F];
-//     out[1] = hex_chars[byte & 0x0F];
-// }
-
-// // ½«¼Ä´æÆ÷×ª»»Îª GDB ¸ñÊ½×Ö·û´®
-// void gdb_registers_to_string(char* buffer, int buffer_size) {
-//     int pos = 0;
-
-//     // °´ÕÕ GDB Ğ­ÒéË³ĞòÊä³ö¼Ä´æÆ÷Öµ
-//     uint32_t* regs = (uint32_t*)&g_reg_context;
-//     for (int i = 0; i < GDB_REG_COUNT; i++) {
-//         uint32_t reg_value = regs[i];
-//         // Ğ¡¶ËĞò£ºµÍ×Ö½ÚÔÚÇ°
-//         for (int j = 0; j < 4; j++) {
-//             uint8_t byte = (reg_value >> (j * 8)) & 0xFF;
-//             byte_to_hex(byte, buffer + pos);
-//             pos += 2;
-//         }
-//     }
-
-//     buffer[pos] = '\0';
-// }
-
-// // ÉèÖÃµ¥²½Ö´ĞĞ±êÖ¾£¨TF flag in EFLAGS£©
-// void gdb_set_single_step(void) {
-//     g_reg_context.eflags |= 0x100;  // Set TF (Trap Flag)
-// }
-
-// // Çå³ıµ¥²½Ö´ĞĞ±êÖ¾
-// void gdb_clear_single_step(void) {
-//     g_reg_context.eflags &= ~0x100;  // Clear TF (Trap Flag)
-// }
-
-
-
-
-// GDB ¼Ä´æÆ÷¹ÜÀíÊµÏÖ
-
 #include "gdb_registers.h"
 #include "../../include/Video.h"
 
-// È«¾Ö¼Ä´æÆ÷ÉÏÏÂÎÄ
 static GDBRegisters g_reg_context;
-// Èí¼şÉÏÏÂÎÄÊÇ·ñÒÑÓÉ±£´æ»òĞ´ÈëÌî³ä£¨1 = ÓĞĞ§£©
 static int g_reg_context_valid = 0;
+static struct pt_regs* g_bound_regs = 0;
+static struct pt_context* g_bound_context = 0;
 
-// Ê®Áù½øÖÆ×Ö·û±í
 static const char* hex_chars = "0123456789abcdef";
 
-// ³õÊ¼»¯¼Ä´æÆ÷
 void gdb_registers_init(void) {
-    // ÇåÁãËùÓĞ¼Ä´æÆ÷
     for (size_t i = 0; i < sizeof(GDBRegisters); i++) {
         ((char*)&g_reg_context)[i] = 0;
     }
+    g_reg_context_valid = 0;
+    g_bound_regs = 0;
+    g_bound_context = 0;
 }
 
 int is_reg_context_valid(void) {
     return g_reg_context_valid;
 }
 
-// ±£´æµ±Ç°¼Ä´æÆ÷£¨Ê¹ÓÃ»ã±à£©
 void gdb_registers_save(void) {
-    // Ìí¼ÓÕï¶ÏÊä³ö
-    Diagnose::Write("[DEBUG] gdb_registers_save called\n");
-    
-    // Èç¹ûÉÏÏÂÎÄÒÑ¾­ÓĞĞ§£¬Ôò²»Òª¸²¸Ç£¨±ÜÃâ¸²¸ÇÓÉ gdb_set_register Ğ´ÈëµÄÈí¼şÉÏÏÂÎÄ£©
     if (g_reg_context_valid) {
         Diagnose::Write("[DEBUG] gdb_registers_save: context already valid, skip saving\n");
         return;
     }
 
-    // ³¢ÊÔ°²È«µØ±£´æ¼Ä´æÆ÷Öµ
-    // Í¨ÓÃ¼Ä´æÆ÷
     __asm__ volatile ("movl %%eax, %0" : "=m"(g_reg_context.eax));
     __asm__ volatile ("movl %%ecx, %0" : "=m"(g_reg_context.ecx));
     __asm__ volatile ("movl %%edx, %0" : "=m"(g_reg_context.edx));
@@ -252,42 +35,87 @@ void gdb_registers_save(void) {
     __asm__ volatile ("movl %%ebp, %0" : "=m"(g_reg_context.ebp));
     __asm__ volatile ("movl %%esi, %0" : "=m"(g_reg_context.esi));
     __asm__ volatile ("movl %%edi, %0" : "=m"(g_reg_context.edi));
-    
-    // ¶Î¼Ä´æÆ÷
+
     __asm__ volatile ("movw %%cs, %0" : "=m"(g_reg_context.cs));
     __asm__ volatile ("movw %%ss, %0" : "=m"(g_reg_context.ss));
     __asm__ volatile ("movw %%ds, %0" : "=m"(g_reg_context.ds));
     __asm__ volatile ("movw %%es, %0" : "=m"(g_reg_context.es));
     __asm__ volatile ("movw %%fs, %0" : "=m"(g_reg_context.fs));
     __asm__ volatile ("movw %%gs, %0" : "=m"(g_reg_context.gs));
-    
-    // EIP ºÍ EFLAGS ĞèÒª´ÓÒì³£Ö¡ÖĞ»ñÈ¡
-    // ÔİÊ±ÉèÎªÄ¬ÈÏÖµ£¬µ«ÖÁÉÙÍ¨ÓÃ¼Ä´æÆ÷ÊÇÕæÊµµÄ
-    // g_reg_context.eip = 0x100000;  // ÄÚºËÈë¿Úµã£¨Õ¼Î»·û£©
-    // g_reg_context.eflags = 0x202;  // IF=1£¨Õ¼Î»·û£©
-    // Ê¹ÓÃ×¼È·µÄ»ã±à´úÂë»ñÈ¡ EIP
-    __asm__ __volatile__ (
+
+    __asm__ __volatile__(
         "call 1f\n\t"
         "1: popl %0\n\t"
         : "=r"(g_reg_context.eip)
     );
-    
-    // Ê¹ÓÃ×¼È·µÄ»ã±à´úÂë»ñÈ¡ EFLAGS
-    __asm__ __volatile__ (
+    __asm__ __volatile__(
         "pushfl\n\t"
         "popl %0\n\t"
         : "=r"(g_reg_context.eflags)
     );
-    // ±ê¼ÇÉÏÏÂÎÄÎªÓĞĞ§£¬±ÜÃâºóĞøÎŞÒâ¸²¸Ç
+
     // g_reg_context_valid = 1;
 }
 
-// ÔÚ½øÈëĞÂµÄµ÷ÊÔÉÏÏÂÎÄ£¨trap/¶Ïµã£©Ê±µ÷ÓÃ£¬Ç¿ÖÆÏÂÒ»´Î±£´æ´ÓÎïÀí¼Ä´æÆ÷Ë¢ĞÂ
 void gdb_registers_invalidate(void) {
     g_reg_context_valid = 0;
+    g_bound_regs = 0;
+    g_bound_context = 0;
 }
 
-// »Ö¸´¼Ä´æÆ÷
+void gdb_registers_bind_trap_frame(struct pt_regs* regs, struct pt_context* context) {
+    g_bound_regs = regs;
+    g_bound_context = context;
+
+    if (!regs || !context) {
+        return;
+    }
+
+    g_reg_context.eax = regs->eax;
+    g_reg_context.ecx = regs->ecx;
+    g_reg_context.edx = regs->edx;
+    g_reg_context.ebx = regs->ebx;
+    g_reg_context.esp = context->esp;
+    g_reg_context.ebp = regs->ebp;
+    g_reg_context.esi = regs->esi;
+    g_reg_context.edi = regs->edi;
+
+    g_reg_context.eip = context->eip;
+    g_reg_context.eflags = context->eflags;
+    g_reg_context.cs = context->xcs;
+    g_reg_context.ss = context->xss;
+
+    g_reg_context.ds = regs->xds;
+    g_reg_context.es = regs->xes;
+
+    __asm__ volatile ("movw %%fs, %0" : "=m"(g_reg_context.fs));
+    __asm__ volatile ("movw %%gs, %0" : "=m"(g_reg_context.gs));
+
+    g_reg_context_valid = 1;
+}
+
+void gdb_registers_commit_to_trap_frame(void) {
+    if (!g_bound_regs || !g_bound_context || !g_reg_context_valid) {
+        return;
+    }
+
+    g_bound_regs->eax = g_reg_context.eax;
+    g_bound_regs->ecx = g_reg_context.ecx;
+    g_bound_regs->edx = g_reg_context.edx;
+    g_bound_regs->ebx = g_reg_context.ebx;
+    g_bound_regs->ebp = g_reg_context.ebp;
+    g_bound_regs->esi = g_reg_context.esi;
+    g_bound_regs->edi = g_reg_context.edi;
+    g_bound_regs->xds = g_reg_context.ds;
+    g_bound_regs->xes = g_reg_context.es;
+
+    g_bound_context->eip = g_reg_context.eip;
+    g_bound_context->eflags = g_reg_context.eflags;
+    g_bound_context->xcs = g_reg_context.cs;
+    g_bound_context->esp = g_reg_context.esp;
+    g_bound_context->xss = g_reg_context.ss;
+}
+
 void gdb_registers_restore(void) {
     __asm__ volatile (
         "movl %0, %%eax\n\t"
@@ -315,13 +143,12 @@ void gdb_registers_restore(void) {
     );
 }
 
-// »ñÈ¡µ±Ç°¼Ä´æÆ÷
 GDBRegisters* gdb_get_registers(void) {
     return &g_reg_context;
 }
 
 void gdb_set_register(int reg_num, uint32_t value) {
-    // Ê×ÏÈ¸üĞÂÈí¼şÉÏÏÂÎÄ
+    // é¦–å…ˆæ›´æ–°è½¯ä»¶ä¸Šä¸‹æ–‡
     switch (reg_num) {
         case GDB_REG_EAX:   g_reg_context.eax = value; break;
         case GDB_REG_ECX:   g_reg_context.ecx = value; break;
@@ -340,11 +167,11 @@ void gdb_set_register(int reg_num, uint32_t value) {
         case GDB_REG_FS:    g_reg_context.fs = value; break;
         case GDB_REG_GS:    g_reg_context.gs = value; break;
     }
-    // ±ê¼ÇÈí¼şÉÏÏÂÎÄÎªÓĞĞ§£¨ÓÉĞ´²Ù×÷¸üĞÂ£©
+    // æ ‡è®°è½¯ä»¶ä¸Šä¸‹æ–‡ä¸ºæœ‰æ•ˆï¼ˆç”±å†™æ“ä½œæ›´æ–°ï¼‰
     g_reg_context_valid = 1;
 
-    // ¾¡Á¿½«ĞŞ¸ÄĞ´»Øµ½ÎïÀí¼Ä´æÆ÷£¨½ö¶Ô°²È«µÄ¼Ä´æÆ÷£©¡£ESP/EBP/EIP/¶Î¼Ä´æÆ÷
-    // ²»ÔÚ´Ë´¦Ö±½ÓĞ´»ØÒÔ±ÜÃâÆÆ»µµ±Ç°Ö´ĞĞÉÏÏÂÎÄ¡£
+    // å°½é‡å°†ä¿®æ”¹å†™å›åˆ°ç‰©ç†å¯„å­˜å™¨ï¼ˆä»…å¯¹å®‰å…¨çš„å¯„å­˜å™¨ï¼‰ã€‚ESP/EBP/EIP/æ®µå¯„å­˜å™¨
+    // ä¸åœ¨æ­¤å¤„ç›´æ¥å†™å›ä»¥é¿å…ç ´åå½“å‰æ‰§è¡Œä¸Šä¸‹æ–‡ã€‚
     switch (reg_num) {
         case GDB_REG_EAX:
             __asm__ __volatile__("movl %0, %%eax" : : "r"(value) : "eax", "memory");
@@ -378,28 +205,27 @@ void gdb_set_register(int reg_num, uint32_t value) {
             }
             break;
         case GDB_REG_ESP:
-            Diagnose::Write("[GDB] ¾¯¸æ: Ğ´ ESP ÇëÇóÒÑ¼ÇÂ¼£¬½ö¸üĞÂÈí¼şÉÏÏÂÎÄ\n");
+            Diagnose::Write("[GDB] è­¦å‘Š: å†™ ESP è¯·æ±‚å·²è®°å½•ï¼Œä»…æ›´æ–°è½¯ä»¶ä¸Šä¸‹æ–‡\n");
             break;
         case GDB_REG_EBP:
-            Diagnose::Write("[GDB] ¾¯¸æ: Ğ´ EBP ÇëÇóÒÑ¼ÇÂ¼£¬½ö¸üĞÂÈí¼şÉÏÏÂÎÄ\n");
+            Diagnose::Write("[GDB] è­¦å‘Š: å†™ EBP è¯·æ±‚å·²è®°å½•ï¼Œä»…æ›´æ–°è½¯ä»¶ä¸Šä¸‹æ–‡\n");
             break;
         default:
-            // EIP, ¶Î¼Ä´æÆ÷µÈ²»ÔÚ´Ë´¦Ğ´»Ø
+            // EIP, æ®µå¯„å­˜å™¨ç­‰ä¸åœ¨æ­¤å¤„å†™å›
             break;
     }
     
-    // µ÷ÊÔÊä³ö
+    // è°ƒè¯•è¾“å‡º
     const char* reg_names[] = {
         "EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI",
         "EIP", "EFLAGS", "CS", "SS", "DS", "ES", "FS", "GS"
     };
     
     if (reg_num >= 0 && reg_num < 16) {
-        Diagnose::Write("[DEBUG] ÉèÖÃ¼Ä´æÆ÷ %s = 0x%08x\n", reg_names[reg_num], value);
+        Diagnose::Write("[DEBUG] è®¾ç½®å¯„å­˜å™¨ %s = 0x%08x\n", reg_names[reg_num], value);
     }
 }
 
-// »ñÈ¡¼Ä´æÆ÷Öµ
 uint32_t gdb_get_register_value(int reg_num) {
     switch (reg_num) {
         case GDB_REG_EAX:   return g_reg_context.eax;
@@ -422,21 +248,18 @@ uint32_t gdb_get_register_value(int reg_num) {
     }
 }
 
-// ½«×Ö½Ú×ª»»ÎªÁ½¸öÊ®Áù½øÖÆ×Ö·û
 static void byte_to_hex(uint8_t byte, char* out) {
     out[0] = hex_chars[(byte >> 4) & 0x0F];
     out[1] = hex_chars[byte & 0x0F];
 }
 
-// ½«¼Ä´æÆ÷×ª»»Îª GDB ¸ñÊ½×Ö·û´®
 void gdb_registers_to_string(char* buffer, int buffer_size) {
+    (void)buffer_size;
     int pos = 0;
-
-    // °´ÕÕ GDB Ğ­ÒéË³ĞòÊä³ö¼Ä´æÆ÷Öµ
     uint32_t* regs = (uint32_t*)&g_reg_context;
+
     for (int i = 0; i < GDB_REG_COUNT; i++) {
         uint32_t reg_value = regs[i];
-        // Ğ¡¶ËĞò£ºµÍ×Ö½ÚÔÚÇ°
         for (int j = 0; j < 4; j++) {
             uint8_t byte = (reg_value >> (j * 8)) & 0xFF;
             byte_to_hex(byte, buffer + pos);
@@ -447,15 +270,10 @@ void gdb_registers_to_string(char* buffer, int buffer_size) {
     buffer[pos] = '\0';
 }
 
-// ÉèÖÃµ¥²½Ö´ĞĞ±êÖ¾£¨TF flag in EFLAGS£©
 void gdb_set_single_step(void) {
-    // ÉèÖÃTrap Flag (Î»8)
     g_reg_context.eflags |= 0x100;
-    Diagnose::Write("[STEP] ÉèÖÃµ¥²½±êÖ¾£¬EFLAGS=0x%08x\n", g_reg_context.eflags);
 }
 
 void gdb_clear_single_step(void) {
-    // Çå³ıTrap Flag
     g_reg_context.eflags &= ~0x100;
-    Diagnose::Write("[STEP] Çå³ıµ¥²½±êÖ¾£¬EFLAGS=0x%08x\n", g_reg_context.eflags);
 }

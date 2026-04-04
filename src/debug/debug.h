@@ -3,6 +3,9 @@
 
 #include "../libyrosstd/sys/types.h"
 
+struct pt_regs;
+struct pt_context;
+
 #define DEBUG_ENABLED 1
 #define DEBUG_PORT 1234
 #define DEBUG_BUFFER_SIZE 1024
@@ -25,7 +28,6 @@ typedef enum {
     GDB_CMD_THREAD = 'H',
 } GDBCommand;
 
-// 调试模式枚举
 typedef enum {
     DEBUG_MODE_NONE = 0,
     DEBUG_MODE_CONTINUE,
@@ -36,11 +38,11 @@ typedef struct {
     int enabled;
     int listening;
     int connected;
-    // int mode;
     DebugMode mode;
     char buffer[DEBUG_BUFFER_SIZE];
     int buffer_pos;
     int resume_requested;
+    int target_running;
 } DebuggerState;
 
 int debugger_init(void);
@@ -48,7 +50,9 @@ void debugger_main(void);
 void gdb_send_packet(char* data);
 void gdb_send_ok(void);
 void gdb_send_error(int code);
-// 调试器入口函数
-void debugger_enter(void);
+void debugger_enter(struct pt_regs* regs, struct pt_context* context);
+void monitor_execution_mode(void);
+int debugger_is_target_running(void);
+void debugger_set_target_running(int running);
 
 #endif

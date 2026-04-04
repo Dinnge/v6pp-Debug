@@ -183,21 +183,18 @@ IMPLEMENT_EXCEPTION_HANDLER(DivideError, "Divide Exception!", User::SIGFPE)
 IMPLEMENT_EXCEPTION_ENTRANCE(DebugEntrance, Debug)
 // IMPLEMENT_EXCEPTION_HANDLER(Debug, "Debug Exception!", User::SIGTRAP)
 void Exception::Debug(struct pt_regs* regs, struct pt_context* context) {
-    // 先进入调试器
-    debugger_enter();
-    
-    // 然后再处理信号（可选）
+    debugger_enter(regs, context);
+
     User& u = Kernel::Instance().GetUser();
     Process* current = u.u_procp;
-    
+
     if ((context->xcs & USER_MODE) == USER_MODE) {
         current->PSignal(User::SIGTRAP);
         if (current->IsSig())
             current->PSig(context);
-    } else {
-        Utility::Panic("Breakpoint Exception!");
     }
 }
+
 
 
 
@@ -210,21 +207,18 @@ IMPLEMENT_EXCEPTION_HANDLER(NMI, "Non-maskable Interrupt!", User::SIGNUL)
 IMPLEMENT_EXCEPTION_ENTRANCE(BreakpointEntrance, Breakpoint)
 // IMPLEMENT_EXCEPTION_HANDLER(Breakpoint, "Breakpoint Exception!", User::SIGTRAP)
 void Exception::Breakpoint(struct pt_regs* regs, struct pt_context* context) {
-    // 先进入调试器
-    debugger_enter();
-    
-    // 然后再处理信号（可选）
+    debugger_enter(regs, context);
+
     User& u = Kernel::Instance().GetUser();
     Process* current = u.u_procp;
-    
+
     if ((context->xcs & USER_MODE) == USER_MODE) {
         current->PSignal(User::SIGTRAP);
         if (current->IsSig())
             current->PSig(context);
-    } else {
-        Utility::Panic("Breakpoint Exception!");
     }
 }
+
 
 
 //溢出(INT 4)

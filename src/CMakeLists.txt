@@ -1,15 +1,17 @@
 #[[
-    Unix V6++ Tongji 顶层构造文件
-    创建于 2024年4月28日 上海市嘉定区安亭镇
+    Unix V6++ Tongji 露楼虏茫鹿鹿脭矛脦脛录镁
+    麓麓陆篓脫脷 2024脛锚4脭脗28脠脮 脡脧潞拢脢脨录脦露篓脟酶掳虏脥陇脮貌
 
     by 2051565 GTY
 ]]
 
 cmake_minimum_required(VERSION 3.20)
 
-# 可选项
+# 驴脡脩隆脧卯
 option(USE_VESA "enable VESA support and use it as console's backend." ON)
 option(ENABLE_SPLASH "enable splash at boot." ON)
+option(EARLY_BOOT_GDB "enable early boot GDB handoff in kernelBridge." OFF)
+option(KERNEL_GDB_AUTOSTART "enable kernel-stage GDB autostart in main0." OFF)
 
 
 string(TIMESTAMP build_time_iso8601 UTC)  # example: 2024-04-19T13:39Z
@@ -20,7 +22,7 @@ set(V6PP_BUILD_TIME_HUMAN_READABLE ${build_time_human_readable})
 project(UnixV6ppTJ)
 
 
-# 指定使用 C++20
+# 脰赂露篓脢鹿脫脙 C++20
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
@@ -35,21 +37,29 @@ if (ENABLE_SPLASH)
     add_compile_definitions(ENABLE_SPLASH)
 endif()
 
+if (EARLY_BOOT_GDB)
+    add_compile_definitions(EARLY_BOOT_GDB)
+endif()
 
-# 设置 nasm 汇编
-# 实际需要使用 nasm 时，
-# 需要在子 CMakeLists.txt 内设置 enable_language
+if (KERNEL_GDB_AUTOSTART)
+    add_compile_definitions(KERNEL_GDB_AUTOSTART)
+endif()
+
+
+# 脡猫脰脙 nasm 禄茫卤脿
+# 脢碌录脢脨猫脪陋脢鹿脫脙 nasm 脢卤拢卢
+# 脨猫脪陋脭脷脳脫 CMakeLists.txt 脛脷脡猫脰脙 enable_language
 set(CMAKE_ASM_NASM_SOURCE_FILE_EXTENSIONS asm)
 set(CMAKE_ASM_NASM_FLAGS "-g")
 set(CMAKE_ASM_NASM_LINK_EXECUTABLE "echo -n")
 
 
-# 头文件路径。
+# 脥路脦脛录镁脗路戮露隆拢
 include_directories("${PROJECT_SOURCE_DIR}")  # for modules forked from yros
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
 
-# GCC(g++) 编译选项。
+# GCC(g++) 卤脿脪毛脩隆脧卯隆拢
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32")
@@ -69,7 +79,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-red-zone")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-mmx")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-sse")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-sse2")
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcmodel=large")  # 编译64位内核时需启用
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcmodel=large")  # 卤脿脪毛64脦禄脛脷潞脣脢卤脨猫脝么脫脙
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable")
@@ -79,12 +89,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=always")
 
 set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS}")
 
-# 子目录。
+# 脳脫脛驴脗录隆拢
 add_subdirectory(boot)
 
 
 #[[ 
-    项目构造产物
+    脧卯脛驴鹿鹿脭矛虏煤脦茂
 ]]
 file(GLOB_RECURSE CPP_SOURCE_FILES *.cpp)
 file(GLOB_RECURSE C_SOURCE_FILES *.c)
@@ -97,7 +107,7 @@ set_target_properties(
 
 
 
-# 构建 kernel.exe
+# 鹿鹿陆篓 kernel.exe
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--whole-archive,-m,elf_i386,-T,${CMAKE_SOURCE_DIR}/kernel.link.ld,-static")
 
 set(NULL_CPP_FILE_PATH "${CMAKE_BINARY_DIR}/_yros_cmake_hack/null.cpp")
@@ -160,4 +170,3 @@ add_custom_command(
     COMMAND
         objcopy -O binary ${KERNEL_EXE_TARGET} ${KERNEL_BIN_TARGET}
 )
-

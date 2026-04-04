@@ -252,6 +252,9 @@ ScanCodeTranslate(unsigned char scanCode, int expand)
 					for ( int killed = 0; killed < ProcessManager::NPROC ; killed ++ )
 						if ( procMgr.process[killed].p_pid > 1)
 							procMgr.process[killed].PSignal(User::SIGINT);
+
+						// 额外：当收到 Ctrl+C 时触发调试异常，强制进入调试器
+						asm volatile("int $0x01");
 				}
 				else
 				{

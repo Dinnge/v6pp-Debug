@@ -4,6 +4,8 @@
 #include "TimeInterrupt.h"
 #include "DiskInterrupt.h"
 #include "KeyboardInterrupt.h"
+
+#include "SerialInterrupt.h"
 #include "SystemCall.h"
 
 #include "PageManager.h"
@@ -94,6 +96,10 @@ void Machine::InitIDT()
 	this->GetIDT().SetInterruptGate(0x20, (unsigned long)Time::TimeInterruptEntrance);
 	/* 设置键盘中断的中断门 */
 	this->GetIDT().SetInterruptGate(0x21, (unsigned long)KeyboardInterrupt::KeyboardInterruptEntrance);
+
+	/* 设置串口(COM1)中断的中断门 (IRQ4 -> vector 0x20 + 4 = 0x24) */
+	this->GetIDT().SetInterruptGate(0x24, (unsigned long)SerialInterrupt::SerialInterruptEntrance);
+
 	/* 设置IDT中磁盘中断对应中断门 */
 	this->GetIDT().SetInterruptGate(0x2E, (unsigned long)DiskInterrupt::DiskInterruptEntrance);
 	/* 0x80号中断向量作为系统调用，设置系统调用对应的陷入门 */

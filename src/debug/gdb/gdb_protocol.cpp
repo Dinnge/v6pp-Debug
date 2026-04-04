@@ -6,10 +6,10 @@
 // #include "../../include/Video.h"
 // #include "../debug.h"
 
-// // 外部引用调试器状态
+// // 脥芒虏驴脪媒脫脙碌梅脢脭脝梅脳麓脤卢
 // extern DebuggerState g_debugger;
 
-// // 自定义字符串函数（内核环境）
+// // 脳脭露篓脪氓脳脰路没麓庐潞炉脢媒拢篓脛脷潞脣禄路戮鲁拢漏
 // static int strlen(const char* s) {
 //     int len = 0;
 //     while (s[len] != '\0') len++;
@@ -42,15 +42,15 @@
 //     return 0;
 // }
 
-// // 全局 socket 变量
+// // 脠芦戮脰 socket 卤盲脕驴
 // static Socket g_client_socket = (Socket)-1;
 
-// // 设置当前连接的客户端 socket
+// // 脡猫脰脙碌卤脟掳脕卢陆脫碌脛驴脥禄搂露脣 socket
 // void gdb_set_client_socket(Socket sock) {
 //     g_client_socket = sock;
 // }
 
-// // 获取当前客户端 socket
+// // 禄帽脠隆碌卤脟掳驴脥禄搂露脣 socket
 // Socket gdb_get_client_socket(void) {
 //     return g_client_socket;
 // }
@@ -58,21 +58,21 @@
 // int gdb_recv_packet(char* buffer, int buffer_size) {
 //     if (g_client_socket == (Socket)-1) return -1;
 
-//     // 串口层已经实现了对完整 RSP 包的解析（serial_recv_packet 返回包体长度，
-//     // 不包含起始 '$' 与校验和），因此这里直接一次性从 socket 层读取完整包。
-//     // 返回值语义：>0 包长度，0 表示当前无数据，<0 表示连接关闭或错误。
+//     // 麓庐驴脷虏茫脪脩戮颅脢碌脧脰脕脣露脭脥锚脮没 RSP 掳眉碌脛陆芒脦枚拢篓serial_recv_packet 路碌禄脴掳眉脤氓鲁陇露脠拢卢
+//     // 虏禄掳眉潞卢脝冒脢录 '$' 脫毛脨拢脩茅潞脥拢漏拢卢脪貌麓脣脮芒脌茂脰卤陆脫脪禄麓脦脨脭麓脫 socket 虏茫露脕脠隆脥锚脮没掳眉隆拢
+//     // 路碌禄脴脰碌脫茂脪氓拢潞>0 掳眉鲁陇露脠拢卢0 卤铆脢戮碌卤脟掳脦脼脢媒戮脻拢卢<0 卤铆脢戮脕卢陆脫鹿脴卤脮禄貌麓铆脦贸隆拢
 //     int recv_len = gdb_socket_recv(g_client_socket, buffer, buffer_size);
 //     if (recv_len < 0) {
-//         return -1; // 连接错误或已关闭
+//         return -1; // 脕卢陆脫麓铆脦贸禄貌脪脩鹿脴卤脮
 //     }
 //     if (recv_len == 0) {
-//         return 0; // 暂无完整包
+//         return 0; // 脭脻脦脼脥锚脮没掳眉
 //     }
 
-//     // 确保字符串终止
+//     // 脠路卤拢脳脰路没麓庐脰脮脰鹿
 //     if (recv_len >= buffer_size) recv_len = buffer_size - 1;
 //     buffer[recv_len] = '\0';
-//     // 日志接收到的包体（便于调试握手）
+//     // 脠脮脰戮陆脫脢脮碌陆碌脛掳眉脤氓拢篓卤茫脫脷碌梅脢脭脦脮脢脰拢漏
 //     Diagnose::Write("RX: ");
 //     Diagnose::Write(buffer);
 //     Diagnose::Write("\n");
@@ -86,22 +86,22 @@
 //     char buffer[DEBUG_BUFFER_SIZE];
 //     int len = strlen(data);
 
-//     // 计算校验和
+//     // 录脝脣茫脨拢脩茅潞脥
 //     unsigned char checksum = 0;
 //     for (int i = 0; i < len; i++) {
 //         checksum += (unsigned char)data[i];
 //     }
 
-//     // 构造数据包: $数据#校验和
+//     // 鹿鹿脭矛脢媒戮脻掳眉: $脢媒戮脻#脨拢脩茅潞脥
 //     int pos = 0;
 //     buffer[pos++] = '$';
-//     // 直接复制 data 中的字节（不要写入额外的 '\0' 字节到数据部分）
+//     // 脰卤陆脫赂麓脰脝 data 脰脨碌脛脳脰陆脷拢篓虏禄脪陋脨麓脠毛露卯脥芒碌脛 '\0' 脳脰陆脷碌陆脢媒戮脻虏驴路脰拢漏
 //     for (int i = 0; i < len; i++) {
 //         buffer[pos++] = data[i];
 //     }
 //     buffer[pos++] = '#';
 
-//     // 转换校验和为十六进制
+//     // 脳陋禄禄脨拢脩茅潞脥脦陋脢庐脕霉陆酶脰脝
 //     char hex[3];
 //     hex[0] = "0123456789abcdef"[(checksum >> 4) & 0x0F];
 //     hex[1] = "0123456789abcdef"[checksum & 0x0F];
@@ -109,7 +109,7 @@
 //     buffer[pos++] = hex[1];
 //     buffer[pos] = '\0';
 
-//     // 发送到 GDB，先记录要发送的原始包内容以便调试
+//     // 路垄脣脥碌陆 GDB拢卢脧脠录脟脗录脪陋路垄脣脥碌脛脭颅脢录掳眉脛脷脠脻脪脭卤茫碌梅脢脭
 //     Diagnose::Write("TX: ");
 //     Diagnose::Write(buffer);
 //     Diagnose::Write("\n");
@@ -123,7 +123,7 @@
 // void gdb_send_error(int code) {
 //     char buffer[16];
 //     buffer[0] = 'E';
-//     // 转换错误码为十六进制
+//     // 脳陋禄禄麓铆脦贸脗毛脦陋脢庐脕霉陆酶脰脝
 //     const char* hex = "0123456789abcdef";
 //     buffer[1] = hex[(code >> 4) & 0x0F];
 //     buffer[2] = hex[code & 0x0F];
@@ -150,37 +150,37 @@
 //     }
 // }
 
-// // 处理继续执行命令
+// // 麓娄脌铆录脤脨酶脰麓脨脨脙眉脕卯
 // void gdb_handle_continue(char *p) {
 //     gdb_send_ok();
 //     g_debugger.mode = DEBUG_MODE_CONTINUE;
 //     Diagnose::Write("Continuing execution...\n");
 // }
 
-// // 处理单步执行命令
+// // 麓娄脌铆碌楼虏陆脰麓脨脨脙眉脕卯
 // void gdb_handle_step(char *p) {
 //     gdb_send_ok();
 //     g_debugger.mode = DEBUG_MODE_STEP;
 //     Diagnose::Write("Stepping...\n");
 // }
 
-// // 处理读取寄存器命令
+// // 麓娄脌铆露脕脠隆录脛麓忙脝梅脙眉脕卯
 // void gdb_handle_read_registers(char* p) {
-//     // 先保存当前寄存器
+//     // 脧脠卤拢麓忙碌卤脟掳录脛麓忙脝梅
 //     gdb_registers_save();
 
-//     // 转换为 GDB 格式字符串
+//     // 脳陋禄禄脦陋 GDB 赂帽脢陆脳脰路没麓庐
 //     char reg_str[512];
 //     gdb_registers_to_string(reg_str, sizeof(reg_str));
 
-//     // 发送给 GDB
+//     // 路垄脣脥赂酶 GDB
 //     gdb_send_packet(reg_str);
 // }
 
-// // 处理写入寄存器命令
+// // 麓娄脌铆脨麓脠毛录脛麓忙脝梅脙眉脕卯
 // void gdb_handle_write_registers(char* p) {
-//     // 解析寄存器数据（GDB 格式：GXX...）
-//     // 跳过 'G' 前缀
+//     // 陆芒脦枚录脛麓忙脝梅脢媒戮脻拢篓GDB 赂帽脢陆拢潞GXX...拢漏
+//     // 脤酶鹿媒 'G' 脟掳脳潞
 //     if (p[0] != 'G') {
 //         gdb_send_error(0);
 //         return;
@@ -189,7 +189,7 @@
 //     char* data = p + 1;
 //     uint32_t value = 0;
 
-//     // 解析十六进制字符串
+//     // 陆芒脦枚脢庐脕霉陆酶脰脝脳脰路没麓庐
 //     int pos = 0;
 //     for (int i = 0; i < GDB_REG_COUNT; i++) {
 //         value = 0;
@@ -215,16 +215,16 @@
 //     gdb_send_ok();
 // }
 
-// // 处理读取内存命令（格式：m地址,长度）
+// // 麓娄脌铆露脕脠隆脛脷麓忙脙眉脕卯拢篓赂帽脢陆拢潞m碌脴脰路,鲁陇露脠拢漏
 // void gdb_handle_read_memory(char* p) {
-//     // 解析地址和长度
+//     // 陆芒脦枚碌脴脰路潞脥鲁陇露脠
 //     uint32_t addr = 0;
 //     uint32_t len = 0;
 
-//     // 跳过 'm' 前缀
+//     // 脤酶鹿媒 'm' 脟掳脳潞
 //     char* ptr = p + 1;
 
-//     // 解析地址（十六进制）
+//     // 陆芒脦枚碌脴脰路拢篓脢庐脕霉陆酶脰脝拢漏
 //     while (*ptr != ',' && *ptr != '\0') {
 //         char c = *ptr++;
 //         if (c >= '0' && c <= '9') {
@@ -236,10 +236,10 @@
 //         }
 //     }
 
-//     // 跳过 ','
+//     // 脤酶鹿媒 ','
 //     if (*ptr == ',') ptr++;
 
-//     // 解析长度
+//     // 陆芒脦枚鲁陇露脠
 //     while (*ptr != '\0') {
 //         char c = *ptr++;
 //         if (c >= '0' && c <= '9') {
@@ -251,19 +251,19 @@
 //         }
 //     }
 
-//     // 限制最大长度
+//     // 脧脼脰脝脳卯麓贸鲁陇露脠
 //     if (len > DEBUG_BUFFER_SIZE / 2) {
 //         len = DEBUG_BUFFER_SIZE / 2;
 //     }
 
-//     // 读取内存
+//     // 露脕脠隆脛脷麓忙
 //     static char mem_buffer[DEBUG_BUFFER_SIZE];
 //     if (gdb_read_memory(addr, mem_buffer, len) < 0) {
 //         gdb_send_error(0);
 //         return;
 //     }
 
-//     // 转换为十六进制字符串
+//     // 脳陋禄禄脦陋脢庐脕霉陆酶脰脝脳脰路没麓庐
 //     static char hex_buffer[DEBUG_BUFFER_SIZE * 2];
 //     const char* hex_chars = "0123456789abcdef";
 //     int hex_pos = 0;
@@ -277,16 +277,16 @@
 //     gdb_send_packet(hex_buffer);
 // }
 
-// // 处理写入内存命令（格式：M地址,长度:数据）
+// // 麓娄脌铆脨麓脠毛脛脷麓忙脙眉脕卯拢篓赂帽脢陆拢潞M碌脴脰路,鲁陇露脠:脢媒戮脻拢漏
 // void gdb_handle_write_memory(char* p) {
-//     // 解析地址和长度
+//     // 陆芒脦枚碌脴脰路潞脥鲁陇露脠
 //     uint32_t addr = 0;
 //     uint32_t len = 0;
 
-//     // 跳过 'M' 前缀
+//     // 脤酶鹿媒 'M' 脟掳脳潞
 //     char* ptr = p + 1;
 
-//     // 解析地址
+//     // 陆芒脦枚碌脴脰路
 //     while (*ptr != ',' && *ptr != '\0') {
 //         char c = *ptr++;
 //         if (c >= '0' && c <= '9') {
@@ -298,10 +298,10 @@
 //         }
 //     }
 
-//     // 跳过 ','
+//     // 脤酶鹿媒 ','
 //     if (*ptr == ',') ptr++;
 
-//     // 解析长度
+//     // 陆芒脦枚鲁陇露脠
 //     while (*ptr != ':' && *ptr != '\0') {
 //         char c = *ptr++;
 //         if (c >= '0' && c <= '9') {
@@ -313,10 +313,10 @@
 //         }
 //     }
 
-//     // 跳过 ':'
+//     // 脤酶鹿媒 ':'
 //     if (*ptr == ':') ptr++;
 
-//     // 解析数据
+//     // 陆芒脦枚脢媒戮脻
 //     static char data_buffer[DEBUG_BUFFER_SIZE];
 //     const char* hex_chars = "0123456789abcdef";
 
@@ -337,7 +337,7 @@
 //         data_buffer[i] = byte;
 //     }
 
-//     // 写入内存
+//     // 脨麓脠毛脛脷麓忙
 //     if (gdb_write_memory(addr, data_buffer, len) < 0) {
 //         gdb_send_error(0);
 //         return;
@@ -346,7 +346,7 @@
 //     gdb_send_ok();
 // }
 
-// // 处理设置断点命令（格式：Z类型,地址,长度）
+// // 麓娄脌铆脡猫脰脙露脧碌茫脙眉脕卯拢篓赂帽脢陆拢潞Z脌脿脨脥,碌脴脰路,鲁陇露脠拢漏
 // void gdb_handle_set_breakpoint(char* p) {
 //     if (p[0] != 'Z') {
 //         gdb_send_error(0);
@@ -357,13 +357,13 @@
 //     GDBBreakpointType type;
 //     uint32_t addr;
 
-//     // 解析类型
+//     // 陆芒脦枚脌脿脨脥
 //     type = (GDBBreakpointType)(*ptr++ - '0');
 
-//     // 跳过 ','
+//     // 脤酶鹿媒 ','
 //     if (*ptr == ',') ptr++;
 
-//     // 解析地址
+//     // 陆芒脦枚碌脴脰路
 //     addr = 0;
 //     while (*ptr != ',' && *ptr != '\0') {
 //         char c = *ptr++;
@@ -376,7 +376,7 @@
 //         }
 //     }
 
-//     // 添加断点
+//     // 脤铆录脫露脧碌茫
 //     if (gdb_add_breakpoint(addr, type) != 0) {
 //         gdb_send_error(1);
 //     } else {
@@ -384,7 +384,7 @@
 //     }
 // }
 
-// // 处理移除断点命令（格式：z类型,地址,长度）
+// // 麓娄脌铆脪脝鲁媒露脧碌茫脙眉脕卯拢篓赂帽脢陆拢潞z脌脿脨脥,碌脴脰路,鲁陇露脠拢漏
 // void gdb_handle_remove_breakpoint(char* p) {
 //     if (p[0] != 'z') {
 //         gdb_send_error(0);
@@ -395,13 +395,13 @@
 //     GDBBreakpointType type;
 //     uint32_t addr;
 
-//     // 解析类型
+//     // 陆芒脦枚脌脿脨脥
 //     type = (GDBBreakpointType)(*ptr++ - '0');
 
-//     // 跳过 ','
+//     // 脤酶鹿媒 ','
 //     if (*ptr == ',') ptr++;
 
-//     // 解析地址
+//     // 陆芒脦枚碌脴脰路
 //     addr = 0;
 //     while (*ptr != ',' && *ptr != '\0') {
 //         char c = *ptr++;
@@ -414,7 +414,7 @@
 //         }
 //     }
 
-//     // 移除断点
+//     // 脪脝鲁媒露脧碌茫
 //     if (gdb_remove_breakpoint(addr) != 0) {
 //         gdb_send_error(1);
 //     } else {
@@ -422,46 +422,46 @@
 //     }
 // }
 
-// // 处理查询命令
+// // 麓娄脌铆虏茅脩炉脙眉脕卯
 // void gdb_handle_query(char* p) {
-//     // qSupported - GDB 特性查询
+//     // qSupported - GDB 脤脴脨脭虏茅脩炉
 //     if (p[0] == 'q' && p[1] == 'S') {
-//         // 返回支持的特性，明确排除未知项
+//         // 路碌禄脴脰搂鲁脰碌脛脤脴脨脭拢卢脙梅脠路脜脜鲁媒脦麓脰陋脧卯
 //         gdb_send_packet((char*)"PacketSize=1000;qRelocInsn+;multiprocess+;xmlRegisters-;timeout-;QStartNoAckMode-");
 //         return;
 //     }
 
-//     // vMustReplyEmpty - 必须回复空
+//     // vMustReplyEmpty - 卤脴脨毛禄脴赂麓驴脮
 //     if (strcmp(p, "vMustReplyEmpty") == 0) {
 //         gdb_send_packet("");
 //         return;
 //     }
 
-//     // vCont? - 查询支持的继续命令
+//     // vCont? - 虏茅脩炉脰搂鲁脰碌脛录脤脨酶脙眉脕卯
 //     if (strcmp(p, "vCont?") == 0) {
 //         gdb_send_packet("vCont;c;C;s;S");
 //         return;
 //     }
 
-//     // qC - 查询当前线程 ID
+//     // qC - 虏茅脩炉碌卤脟掳脧脽鲁脤 ID
 //     if (p[0] == 'q' && p[1] == 'C' && p[2] == '\0') {
 //         gdb_send_packet("QC1");
 //         return;
 //     }
 
-//     // qAttached - 查询是否attached
+//     // qAttached - 虏茅脩炉脢脟路帽attached
 //     if (strcmp(p, "qAttached") == 0) {
-//         gdb_send_packet("1");  // 已attached
+//         gdb_send_packet("1");  // 脪脩attached
 //         return;
 //     }
 
-//     // 其他查询命令返回空
+//     // 脝盲脣没虏茅脩炉脙眉脕卯路碌禄脴驴脮
 //     gdb_send_packet("");
 // }
 
-// // 处理信号命令
+// // 麓娄脌铆脨脜潞脜脙眉脕卯
 // void gdb_handle_signal(char* p) {
-//     // 发送停止信号 (S05 = SIGTRAP)
+//     // 路垄脣脥脥拢脰鹿脨脜潞脜 (S05 = SIGTRAP)
 //     gdb_send_packet("S05");
 // }
 #include "gdb_protocol.h"
@@ -472,10 +472,10 @@
 #include "../../include/Video.h"
 #include "../debug.h"
 
-// 外部引用调试器状态
+// 脥芒虏驴脪媒脫脙碌梅脢脭脝梅脳麓脤卢
 extern "C" DebuggerState g_debugger;
 
-// 自定义字符串函数（内核环境）
+// 脳脭露篓脪氓脳脰路没麓庐潞炉脢媒拢篓脛脷潞脣禄路戮鲁拢漏
 static int strlen(const char* s) {
     int len = 0;
     while (s[len] != '\0') len++;
@@ -529,7 +529,7 @@ uint8_t hex_char_to_value(char c) {
     return 0;
 }
 
-// 十六进制字符串转整数
+// 脢庐脕霉陆酶脰脝脳脰路没麓庐脳陋脮没脢媒
 uint32_t hex_str_to_uint(const char* hex_str) {
     uint32_t result = 0;
     while (*hex_str != '\0') {
@@ -539,8 +539,8 @@ uint32_t hex_str_to_uint(const char* hex_str) {
     return result;
 }
 
-// 解决大小端不一致的问题
-// 交换字节序
+// 陆芒戮枚麓贸脨隆露脣虏禄脪禄脰脗碌脛脦脢脤芒
+// 陆禄禄禄脳脰陆脷脨貌
 uint32_t swap_endian_32(uint32_t value) {
     return ((value & 0x000000FF) << 24) |
            ((value & 0x0000FF00) << 8) |
@@ -548,11 +548,11 @@ uint32_t swap_endian_32(uint32_t value) {
            ((value & 0xFF000000) >> 24);
 }
 
-// 添加字节序转换辅助函数
+// 脤铆录脫脳脰陆脷脨貌脳陋禄禄赂篓脰煤潞炉脢媒
 uint32_t gdb_hex_to_host32(const char* hex_str) {
     uint32_t result = 0;
     
-    // 解析大端序十六进制
+    // 陆芒脦枚麓贸露脣脨貌脢庐脕霉陆酶脰脝
     for (int i = 0; i < 8; i += 2) {
         uint8_t byte = (hex_char_to_value(hex_str[i]) << 4) | 
                       hex_char_to_value(hex_str[i+1]);
@@ -563,13 +563,13 @@ uint32_t gdb_hex_to_host32(const char* hex_str) {
 }
 
 void host32_to_gdb_hex(uint32_t value, char* output) {
-    // 主机小端序转GDB大端序
+    // 脰梅禄煤脨隆露脣脨貌脳陋GDB麓贸露脣脨貌
     uint32_t be_value = ((value & 0xFF) << 24) |
                        ((value & 0xFF00) << 8) |
                        ((value & 0xFF0000) >> 8) |
                        ((value & 0xFF000000) >> 24);
     
-    // 转换为十六进制
+    // 脳陋禄禄脦陋脢庐脕霉陆酶脰脝
     const char hex_chars[] = "0123456789abcdef";
     for (int i = 0; i < 8; i++) {
         int shift = (7 - i) * 4;
@@ -578,74 +578,74 @@ void host32_to_gdb_hex(uint32_t value, char* output) {
     output[8] = '\0';
 }
 
-// 全局 socket 变量
+// 脠芦戮脰 socket 卤盲脕驴
 static Socket g_client_socket = (Socket)-1;
-// 全局寄存器上下文
+// 脠芦戮脰录脛麓忙脝梅脡脧脧脗脦脛
 // static GDBRegisters g_reg_context;
 
 
-// 设置当前连接的客户端 socket
+// 脡猫脰脙碌卤脟掳脕卢陆脫碌脛驴脥禄搂露脣 socket
 void gdb_set_client_socket(Socket sock) {
     g_client_socket = sock;
 }
 
-// 获取当前客户端 socket
+// 禄帽脠隆碌卤脟掳驴脥禄搂露脣 socket
 Socket gdb_get_client_socket(void) {
     return g_client_socket;
 }
 
-// 接收 GDB 数据包（带 ACK/NACK 支持）
+// 陆脫脢脮 GDB 脢媒戮脻掳眉拢篓麓酶 ACK/NACK 脰搂鲁脰拢漏
 int gdb_recv_packet(char* buffer, int buffer_size) {
     if (g_client_socket == (Socket)-1) return -1;
 
-    int state = 0;  // 0=等待'$', 1=接收数据, 2=等待'#', 3=读取校验和第一个字符, 4=读取校验和第二个字符
+    int state = 0;  // 0=碌脠麓媒'$', 1=陆脫脢脮脢媒戮脻, 2=碌脠麓媒'#', 3=露脕脠隆脨拢脩茅潞脥碌脷脪禄赂枚脳脰路没, 4=露脕脠隆脨拢脩茅潞脥碌脷露镁赂枚脳脰路没
     int packet_len = 0;
     unsigned char recv_checksum = 0;
     unsigned char calc_checksum = 0;
     char recv_byte;
 
     while (1) {
-        // 接收一个字节
+        // 陆脫脢脮脪禄赂枚脳脰陆脷
         int recv_len = gdb_socket_recv(g_client_socket, &recv_byte, 1);
         if (recv_len <= 0) {
-            // 无数据或连接断开
+            // 脦脼脢媒戮脻禄貌脕卢陆脫露脧驴陋
             return -1;
         }
 
         char c = recv_byte;
 
-        // 状态机解析数据包
+        // 脳麓脤卢禄煤陆芒脦枚脢媒戮脻掳眉
         switch (state) {
-            case 0:  // 等待 '$'
+            case 0:  // 碌脠麓媒 '$'
                 if (c == '$') {
                     packet_len = 0;
                     calc_checksum = 0;
                     recv_checksum = 0;
                     state = 1;
                 } else if (c == '+') {
-                    // ACK - 对我们发送的数据包的确认，忽略
+                    // ACK - 露脭脦脪脙脟路垄脣脥碌脛脢媒戮脻掳眉碌脛脠路脠脧拢卢潞枚脗脭
                     continue;
                 } else if (c == '-') {
-                    // NACK - 对我们发送的数据包的否认，需要重发
-                    // 返回特殊错误码让上层处理重发
+                    // NACK - 露脭脦脪脙脟路垄脣脥碌脛脢媒戮脻掳眉碌脛路帽脠脧拢卢脨猫脪陋脰脴路垄
+                    // 路碌禄脴脤脴脢芒麓铆脦贸脗毛脠脙脡脧虏茫麓娄脌铆脰脴路垄
                     return -2;
                 }
-                // 忽略其他字符，等待 '$'
+                // 潞枚脗脭脝盲脣没脳脰路没拢卢碌脠麓媒 '$'
                 break;
 
-            case 1:  // 接收数据内容
+            case 1:  // 陆脫脢脮脢媒戮脻脛脷脠脻
                 if (c == '#') {
                     state = 2;
                 } else if (packet_len < buffer_size - 1) {
                     buffer[packet_len++] = c;
                     calc_checksum += (unsigned char)c;
                 } else {
-                    // 缓冲区不足，丢弃数据包
+                    // 禄潞鲁氓脟酶虏禄脳茫拢卢露陋脝煤脢媒戮脻掳眉
                     state = 0;
                 }
                 break;
 
-            case 2:  // 读取校验和第一个字符
+            case 2:  // 露脕脠隆脨拢脩茅潞脥碌脷脪禄赂枚脳脰路没
                 if (c >= '0' && c <= '9') {
                     recv_checksum = (c - '0') << 4;
                 } else if (c >= 'a' && c <= 'f') {
@@ -653,14 +653,14 @@ int gdb_recv_packet(char* buffer, int buffer_size) {
                 } else if (c >= 'A' && c <= 'F') {
                     recv_checksum = (c - 'A' + 10) << 4;
                 } else {
-                    // 无效的校验和字符，丢弃数据包
+                    // 脦脼脨搂碌脛脨拢脩茅潞脥脳脰路没拢卢露陋脝煤脢媒戮脻掳眉
                     state = 0;
                     break;
                 }
                 state = 3;
                 break;
 
-            case 3:  // 读取校验和第二个字符并验证
+            case 3:  // 露脕脠隆脨拢脩茅潞脥碌脷露镁赂枚脳脰路没虏垄脩茅脰陇
                 if (c >= '0' && c <= '9') {
                     recv_checksum |= (c - '0');
                 } else if (c >= 'a' && c <= 'f') {
@@ -668,23 +668,23 @@ int gdb_recv_packet(char* buffer, int buffer_size) {
                 } else if (c >= 'A' && c <= 'F') {
                     recv_checksum |= (c - 'A' + 10);
                 } else {
-                    // 无效的校验和字符，丢弃数据包
+                    // 脦脼脨搂碌脛脨拢脩茅潞脥脳脰路没拢卢露陋脝煤脢媒戮脻掳眉
                     state = 0;
                     break;
                 }
 
-                // 验证校验和
+                // 脩茅脰陇脨拢脩茅潞脥
                 if (recv_checksum == calc_checksum) {
-                    // 校验和正确，发送 ACK
+                    // 脨拢脩茅潞脥脮媒脠路拢卢路垄脣脥 ACK
                     buffer[packet_len] = '\0';
                     char ack = '+';
                     gdb_socket_send(g_client_socket, &ack, 1);
                     return packet_len;
                 } else {
-                    // 校验和错误，发送 NACK
+                    // 脨拢脩茅潞脥麓铆脦贸拢卢路垄脣脥 NACK
                     char nack = '-';
                     gdb_socket_send(g_client_socket, &nack, 1);
-                    // 重置状态机，等待重传的数据包
+                    // 脰脴脰脙脳麓脤卢禄煤拢卢碌脠麓媒脰脴麓芦碌脛脢媒戮脻掳眉
                     state = 0;
                 }
                 break;
@@ -695,15 +695,15 @@ int gdb_recv_packet(char* buffer, int buffer_size) {
 void gdb_send_packet(char* data) {
     if (g_client_socket == (Socket)-1) return;
 
-    // 调试日志：发送数据包（使用原子输出）
+    // 碌梅脢脭脠脮脰戮拢潞路垄脣脥脢媒戮脻掳眉拢篓脢鹿脫脙脭颅脳脫脢盲鲁枚拢漏
     char tx_msg[DEBUG_BUFFER_SIZE + 100];
     int msg_pos = 0;
     
-    // 复制 "[GDB] TX packet: "
+    // 赂麓脰脝 "[GDB] TX packet: "
     const char* tx_prefix = "[GDB] TX packet: ";
     while (*tx_prefix) tx_msg[msg_pos++] = *tx_prefix++;
     
-    // 复制数据内容
+    // 赂麓脰脝脢媒戮脻脛脷脠脻
     int i = 0;
     while (data[i] != '\0' && i < DEBUG_BUFFER_SIZE - 1) {
         tx_msg[msg_pos++] = data[i++];
@@ -717,20 +717,20 @@ void gdb_send_packet(char* data) {
     char buffer[DEBUG_BUFFER_SIZE];
     int len = strlen(data);
 
-    // 计算校验和
+    // 录脝脣茫脨拢脩茅潞脥
     unsigned char checksum = 0;
     for (int i = 0; i < len; i++) {
         checksum += (unsigned char)data[i];
     }
 
-    // 构造数据包: $数据#校验和
+    // 鹿鹿脭矛脢媒戮脻掳眉: $脢媒戮脻#脨拢脩茅潞脥
     int pos = 0;
     buffer[pos++] = '$';
     strcpy(buffer + pos, data);
     pos += len;
     buffer[pos++] = '#';
 
-    // 转换校验和为十六进制
+    // 脳陋禄禄脨拢脩茅潞脥脦陋脢庐脕霉陆酶脰脝
     char hex[3];
     hex[0] = "0123456789abcdef"[(checksum >> 4) & 0x0F];
     hex[1] = "0123456789abcdef"[checksum & 0x0F];
@@ -738,7 +738,7 @@ void gdb_send_packet(char* data) {
     buffer[pos++] = hex[1];
     buffer[pos] = '\0';
 
-    // 发送到 GDB
+    // 路垄脣脥碌陆 GDB
     gdb_socket_send(g_client_socket, buffer, pos);
 }
 
@@ -749,7 +749,7 @@ void gdb_send_ok(void) {
 void gdb_send_error(int code) {
     char buffer[16];
     buffer[0] = 'E';
-    // 转换错误码为十六进制
+    // 脳陋禄禄麓铆脦贸脗毛脦陋脢庐脕霉陆酶脰脝
     const char* hex = "0123456789abcdef";
     buffer[1] = hex[(code >> 4) & 0x0F];
     buffer[2] = hex[code & 0x0F];
@@ -759,6 +759,18 @@ void gdb_send_error(int code) {
 
 GDBCommand gdb_parse_command(char* packet) {
     if (!packet) return GDB_CMD_UNKNOWN;
+    // 脢脳脧脠录矛虏茅脤脴脢芒脟茅驴枚
+    if (strcmp(packet, "vCont?") == 0) {
+        return GDB_CMD_QUERY;  // vCont? 脢脟虏茅脩炉
+    }
+    
+    if (strncmp(packet, "vCont;c", 7) == 0) {
+        return GDB_CMD_CONTINUE;  // vCont;c... 脢脟录脤脨酶
+    }
+    
+    if (strncmp(packet, "vCont;s", 7) == 0) {
+        return GDB_CMD_STEP;  // vCont;s... 脢脟碌楼虏陆
+    }
     char cmd = packet[0];
     switch (cmd) {
         case 'c': return GDB_CMD_CONTINUE;
@@ -779,95 +791,67 @@ GDBCommand gdb_parse_command(char* packet) {
     }
 }
 
-// 处理继续执行命令
+// 麓娄脌铆录脤脨酶脰麓脨脨脙眉脕卯
 void gdb_handle_continue(char* packet) {
-    Diagnose::Write("[GDB] 处理继续执行命令: %s\n", packet);
-    
-    // 1. 验证命令类型
-    if (strcmp(packet, "c") == 0 || strncmp(packet, "vCont;c", 6) == 0) {
-        // 2. 恢复寄存器状态
-        if (is_reg_context_valid()) {
-            gdb_registers_restore();
-            Diagnose::Write("[CONTINUE] 寄存器已恢复，准备继续执行\n");
-        }
-        
-        // 3. 清除单步标志
+    Diagnose::Write("[GDB] continue command: %s\n", packet);
+
+    if (strcmp(packet, "c") == 0 || strncmp(packet, "vCont;c", 7) == 0) {
+        GDBRegisters* regs = gdb_get_registers();
+        regs->eflags |= 0x200;
         gdb_clear_single_step();
-        
-        // 4. 设置继续模式
+        gdb_registers_commit_to_trap_frame();
         g_debugger.mode = DEBUG_MODE_CONTINUE;
         g_debugger.resume_requested = 1;
-        
-        // 5. 发送响应
-        if (strncmp(packet, "vCont;", 6) == 0) {
-            gdb_send_packet("OK");
-        } else {
-            gdb_send_packet("S05");  // 传统c命令返回信号
-        }
-        
-        Diagnose::Write("[CONTINUE] 继续执行请求已处理\n");
+        Diagnose::Write("[CONTINUE] resume requested\n");
     } else {
-        Diagnose::Write("[ERROR] 无效的继续命令: %s\n", packet);
+        Diagnose::Write("[ERROR] invalid continue command: %s\n", packet);
         gdb_send_error(0);
     }
 }
 
 void gdb_handle_step(char* packet) {
-    Diagnose::Write("[GDB] 处理单步执行命令: %s\n", packet);
-    
-    if (strcmp(packet, "s") == 0 || strncmp(packet, "vCont;s", 6) == 0) {
-        // 设置单步标志
+    Diagnose::Write("[GDB] step command: %s\n", packet);
+
+    if (strcmp(packet, "s") == 0 || strncmp(packet, "vCont;s", 7) == 0) {
+        GDBRegisters* regs = gdb_get_registers();
+        regs->eflags |= 0x200;
         gdb_set_single_step();
-        
-        // 恢复寄存器状态
-        if (is_reg_context_valid()) {
-            gdb_registers_restore();
-        }
-        
-        // 设置单步模式
+        gdb_registers_commit_to_trap_frame();
         g_debugger.mode = DEBUG_MODE_STEP;
         g_debugger.resume_requested = 1;
-        
-        // 发送响应
-        if (strncmp(packet, "vCont;", 6) == 0) {
-            gdb_send_packet("OK");
-        } else {
-            gdb_send_packet("S05");
-        }
-        
-        Diagnose::Write("[STEP] 单步执行请求已处理\n");
+        Diagnose::Write("[STEP] single-step requested\n");
     } else {
-        Diagnose::Write("[ERROR] 无效的单步命令: %s\n", packet);
+        Diagnose::Write("[ERROR] invalid step command: %s\n", packet);
         gdb_send_error(0);
     }
 }
 
 void gdb_handle_thread_command(char* packet) {
-    // 格式: H<操作类型><线程号>
+    // 赂帽脢陆: H<虏脵脳梅脌脿脨脥><脧脽鲁脤潞脜>
     if (strlen(packet) < 3) {
-        gdb_send_packet("E01");  // 格式错误
+        gdb_send_packet("E01");  // 赂帽脢陆麓铆脦贸
         return;
     }
     
-    char op_type = packet[1];  // 'g', 'c', 或 's'
+    char op_type = packet[1];  // 'g', 'c', 禄貌 's'
     char* thread_str = packet + 2;
     
-    Diagnose::Write("[GDB] 线程命令: 操作=%c, 线程=%s\n", op_type, thread_str);
+    Diagnose::Write("[GDB] 脧脽鲁脤脙眉脕卯: 虏脵脳梅=%c, 脧脽鲁脤=%s\n", op_type, thread_str);
     
-    // 单线程系统，只支持线程0和1
+    // 碌楼脧脽鲁脤脧碌脥鲁拢卢脰禄脰搂鲁脰脧脽鲁脤0潞脥1
     if (strcmp(thread_str, "0") == 0 || strcmp(thread_str, "1") == 0) {
         gdb_send_packet("OK");
     } else {
-        gdb_send_packet("E01");  // 无效线程
+        gdb_send_packet("E01");  // 脦脼脨搂脧脽鲁脤
     }
 }
 
 // void gdb_handle_read_registers(char* p) {
 
 //     if (p == NULL || p[0] == '\0') {
-//         Diagnose::Write("[GDB] 警告: 接收到空指针或空数据包，返回默认寄存器值\n");
+//         Diagnose::Write("[GDB] 戮炉赂忙: 陆脫脢脮碌陆驴脮脰赂脮毛禄貌驴脮脢媒戮脻掳眉拢卢路碌禄脴脛卢脠脧录脛麓忙脝梅脰碌\n");
         
-//         // 返回默认寄存器值（全零）
+//         // 路碌禄脴脛卢脠脧录脛麓忙脝梅脰碌拢篓脠芦脕茫拢漏
 //         char default_regs[129];
 //         for (int i = 0; i < 128; i++) {
 //             default_regs[i] = '0';
@@ -882,7 +866,7 @@ void gdb_handle_thread_command(char* packet) {
     
 //     uint32_t regs[16] = {0};
     
-//     // 读取真实寄存器值（小端序）
+//     // 露脕脠隆脮忙脢碌录脛麓忙脝梅脰碌拢篓脨隆露脣脨貌拢漏
 //     __asm__ __volatile__ (
 //         "movl %%eax, %0\n\t"
 //         "movl %%ecx, %1\n\t" 
@@ -912,7 +896,7 @@ void gdb_handle_thread_command(char* packet) {
 //         : "=r"(regs[9])
 //     );
     
-//     // 段寄存器
+//     // 露脦录脛麓忙脝梅
 //     uint16_t temp16;
 //     __asm__ __volatile__ ("movw %%cs, %0" : "=r"(temp16));
 //     regs[10] = temp16;
@@ -927,22 +911,22 @@ void gdb_handle_thread_command(char* packet) {
 //     __asm__ __volatile__ ("movw %%gs, %0" : "=r"(temp16));
 //     regs[15] = temp16;
     
-//     // 调试输出：显示关键寄存器转换前后的值
+//     // 碌梅脢脭脢盲鲁枚拢潞脧脭脢戮鹿脴录眉录脛麓忙脝梅脳陋禄禄脟掳潞贸碌脛脰碌
 //     char le_display[9], be_display[9];
-//     host32_to_gdb_hex(regs[8], be_display);  // 使用您现有的函数
-//     Diagnose::Write("[DEBUG] EIP min=0x%08x →  max=0x%s\n", regs[8], be_display);
+//     host32_to_gdb_hex(regs[8], be_display);  // 脢鹿脫脙脛煤脧脰脫脨碌脛潞炉脢媒
+//     Diagnose::Write("[DEBUG] EIP min=0x%08x 隆煤  max=0x%s\n", regs[8], be_display);
     
 //     // host32_to_gdb_hex(regs[4], be_display);
-//     // Diagnose::Write("[DEBUG] ESP转换: 小端序=0x%08x → 大端序=0x%s\n", regs[4], be_display);
+//     // Diagnose::Write("[DEBUG] ESP脳陋禄禄: 脨隆露脣脨貌=0x%08x 隆煤 麓贸露脣脨貌=0x%s\n", regs[4], be_display);
     
 //     // host32_to_gdb_hex(regs[0], be_display);
-//     // Diagnose::Write("[DEBUG] EAX转换: 小端序=0x%08x → 大端序=0x%s\n", regs[0], be_display);
+//     // Diagnose::Write("[DEBUG] EAX脳陋禄禄: 脨隆露脣脨貌=0x%08x 隆煤 麓贸露脣脨貌=0x%s\n", regs[0], be_display);
     
-//     // 关键修改：将所有寄存器值转换为大端序格式发送给GDB
+//     // 鹿脴录眉脨脼赂脛拢潞陆芦脣霉脫脨录脛麓忙脝梅脰碌脳陋禄禄脦陋麓贸露脣脨貌赂帽脢陆路垄脣脥赂酶GDB
 //     char response[129];
     
 //     for (int i = 0; i < 16; i++) {
-//         // 使用您现有的函数：小端序主机值 → 大端序十六进制字符串
+//         // 脢鹿脫脙脛煤脧脰脫脨碌脛潞炉脢媒拢潞脨隆露脣脨貌脰梅禄煤脰碌 隆煤 麓贸露脣脨貌脢庐脕霉陆酶脰脝脳脰路没麓庐
 //         host32_to_gdb_hex(regs[i], response + i * 8);
 //     }
 //     response[128] = '\0';
@@ -951,16 +935,16 @@ void gdb_handle_thread_command(char* packet) {
 // }
 
 void gdb_handle_read_registers(char* p) {
-    // 确保在进入调试器时调用过 `gdb_registers_save()`，这里为了保险也调用一次。
+    // 脠路卤拢脭脷陆酶脠毛碌梅脢脭脝梅脢卤碌梅脫脙鹿媒 `gdb_registers_save()`拢卢脮芒脌茂脦陋脕脣卤拢脧脮脪虏碌梅脫脙脪禄麓脦隆拢
     gdb_registers_save();
 
-    // 使用已有的转换函数构造 GDB 格式字符串并发送。
+    // 脢鹿脫脙脪脩脫脨碌脛脳陋禄禄潞炉脢媒鹿鹿脭矛 GDB 赂帽脢陆脳脰路没麓庐虏垄路垄脣脥隆拢
     char reg_str[512];
     gdb_registers_to_string(reg_str, sizeof(reg_str));
     gdb_send_packet(reg_str);
 }
 
-// 处理写入寄存器命令 需要将大端转为小端
+// 麓娄脌铆脨麓脠毛录脛麓忙脝梅脙眉脕卯 脨猫脪陋陆芦麓贸露脣脳陋脦陋脨隆露脣
 void gdb_handle_write_registers(char* p) {
     if (p[0] != 'G') {
         gdb_send_error(0);
@@ -970,105 +954,105 @@ void gdb_handle_write_registers(char* p) {
     char* data = p + 1;
     int data_len = strlen(data);
     
-    // 验证数据长度：每个寄存器8个十六进制字符
+    // 脩茅脰陇脢媒戮脻鲁陇露脠拢潞脙驴赂枚录脛麓忙脝梅8赂枚脢庐脕霉陆酶脰脝脳脰路没
     if (data_len != GDB_REG_COUNT * 8) {
         gdb_send_error(0);
         return;
     }
     
     for (int reg_index = 0; reg_index < GDB_REG_COUNT; reg_index++) {
-        // 提取8字符十六进制
+        // 脤谩脠隆8脳脰路没脢庐脕霉陆酶脰脝
         char reg_hex[9] = {0};
         for (int i = 0; i < 8; i++) {
             reg_hex[i] = data[reg_index * 8 + i];
         }
         reg_hex[8] = '\0';
         
-        // 关键修复：直接转换，不要字节序转换
+        // 鹿脴录眉脨脼赂麓拢潞脰卤陆脫脳陋禄禄拢卢虏禄脪陋脳脰陆脷脨貌脳陋禄禄
         uint32_t reg_value = hex_str_to_uint(reg_hex);
         
-        // 设置寄存器
+        // 脡猫脰脙录脛麓忙脝梅
         gdb_set_register(reg_index, reg_value);
     }
     
     gdb_send_ok();
 }
 
-// 处理P命令：写入单个寄存器
-// 格式: Pn=xxxxxxxx  （n是寄存器编号，xxxxxxxx是寄存器值）
+// 麓娄脌铆P脙眉脕卯拢潞脨麓脠毛碌楼赂枚录脛麓忙脝梅
+// 赂帽脢陆: Pn=xxxxxxxx  拢篓n脢脟录脛麓忙脝梅卤脿潞脜拢卢xxxxxxxx脢脟录脛麓忙脝梅脰碌拢漏
 void gdb_handle_write_single_register(char* p) {
-    Diagnose::Write("[GDB] 进入gdb_handle_write_single_register函数\n");
+    Diagnose::Write("[GDB] 陆酶脠毛gdb_handle_write_single_register潞炉脢媒\n");
     if (p[0] != 'P') {
         gdb_send_error(0);
         return;
     }
     
-    // 跳过'P'
+    // 脤酶鹿媒'P'
     char* data = p + 1;
     
-    // 查找'='分隔符
+    // 虏茅脮脪'='路脰赂么路没
     char* equal_sign = gdb_strchr(data, '=');
     if (!equal_sign) {
-        Diagnose::Write("[GDB] 无效的P命令格式: %s\n", p);
+        Diagnose::Write("[GDB] 脦脼脨搂碌脛P脙眉脕卯赂帽脢陆: %s\n", p);
         gdb_send_error(0);
         return;
     }
     
-    // 提取寄存器编号
+    // 脤谩脠隆录脛麓忙脝梅卤脿潞脜
     char reg_str[16] = {0};
     int reg_len = equal_sign - data;
     
-    // 使用自定义的字符串复制
+    // 脢鹿脫脙脳脭露篓脪氓碌脛脳脰路没麓庐赂麓脰脝
     for (int i = 0; i < reg_len && i < 15; i++) {
         reg_str[i] = data[i];
     }
     reg_str[reg_len] = '\0';
     
-    // 提取寄存器值
+    // 脤谩脠隆录脛麓忙脝梅脰碌
     char* value_str = equal_sign + 1;
     
-    // 转换为整数 - 使用自定义的字符串转整数
+    // 脳陋禄禄脦陋脮没脢媒 - 脢鹿脫脙脳脭露篓脪氓碌脛脳脰路没麓庐脳陋脮没脢媒
     int reg_num = 0;
     for (int i = 0; i < reg_len && reg_str[i] >= '0' && reg_str[i] <= '9'; i++) {
         reg_num = reg_num * 10 + (reg_str[i] - '0');
     }
     
-    // 使用自定义的十六进制转换函数
+    // 脢鹿脫脙脳脭露篓脪氓碌脛脢庐脕霉陆酶脰脝脳陋禄禄潞炉脢媒
     uint32_t reg_value = hex_str_to_uint(value_str);
     
-    // 字节序转换：GDB发送小端序
+    // 脳脰陆脷脨貌脳陋禄禄拢潞GDB路垄脣脥脨隆露脣脨貌
     uint32_t host_value = 
-        ((reg_value & 0x000000FF) << 24) |  // 字节0 → 字节3
-        ((reg_value & 0x0000FF00) << 8)  |  // 字节1 → 字节2  
-        ((reg_value & 0x00FF0000) >> 8)  |  // 字节2 → 字节1
-        ((reg_value & 0xFF000000) >> 24);   // 字节3 → 字节0
+        ((reg_value & 0x000000FF) << 24) |  // 脳脰陆脷0 隆煤 脳脰陆脷3
+        ((reg_value & 0x0000FF00) << 8)  |  // 脳脰陆脷1 隆煤 脳脰陆脷2  
+        ((reg_value & 0x00FF0000) >> 8)  |  // 脳脰陆脷2 隆煤 脳脰陆脷1
+        ((reg_value & 0xFF000000) >> 24);   // 脳脰陆脷3 隆煤 脳脰陆脷0
     
-    Diagnose::Write("[GDB] P命令: 寄存器%d = 0x%s -> 0x%08x\n", 
+    Diagnose::Write("[GDB] P脙眉脕卯: 录脛麓忙脝梅%d = 0x%s -> 0x%08x\n", 
                    reg_num, value_str, host_value);
     
-    // 验证寄存器编号
+    // 脩茅脰陇录脛麓忙脝梅卤脿潞脜
     if (reg_num < 0 || reg_num > GDB_REG_COUNT) {
-        Diagnose::Write("[GDB] 无效的寄存器编号: %d\n", reg_num);
+        Diagnose::Write("[GDB] 脦脼脨搂碌脛录脛麓忙脝梅卤脿潞脜: %d\n", reg_num);
         gdb_send_error(0);
         return;
     }
     
-    // 设置寄存器
+    // 脡猫脰脙录脛麓忙脝梅
     gdb_set_register(reg_num, host_value);
     
     gdb_send_ok();
 }
 
-// 处理读取内存命令（格式：m地址,长度）
+// 麓娄脌铆露脕脠隆脛脷麓忙脙眉脕卯拢篓赂帽脢陆拢潞m碌脴脰路,鲁陇露脠拢漏
 // void gdb_handle_read_memory(char* p) {
-//     // 解析地址和长度
+//     // 陆芒脦枚碌脴脰路潞脥鲁陇露脠
 //     uint32_t addr = 0;
 //     uint32_t len = 0;
 
-//     // 跳过 'm' 前缀
+//     // 脤酶鹿媒 'm' 脟掳脳潞
 //     char* ptr = p + 1;
 
-//     // 解析地址（十六进制）
+//     // 陆芒脦枚碌脴脰路拢篓脢庐脕霉陆酶脰脝拢漏
 //     while (*ptr != ',' && *ptr != '\0') {
 //         char c = *ptr++;
 //         if (c >= '0' && c <= '9') {
@@ -1080,10 +1064,10 @@ void gdb_handle_write_single_register(char* p) {
 //         }
 //     }
 
-//     // 跳过 ','
+//     // 脤酶鹿媒 ','
 //     if (*ptr == ',') ptr++;
 
-//     // 解析长度
+//     // 陆芒脦枚鲁陇露脠
 //     while (*ptr != '\0') {
 //         char c = *ptr++;
 //         if (c >= '0' && c <= '9') {
@@ -1095,19 +1079,19 @@ void gdb_handle_write_single_register(char* p) {
 //         }
 //     }
 
-//     // 限制最大长度
+//     // 脧脼脰脝脳卯麓贸鲁陇露脠
 //     if (len > DEBUG_BUFFER_SIZE / 2) {
 //         len = DEBUG_BUFFER_SIZE / 2;
 //     }
 
-//     // 读取内存
+//     // 露脕脠隆脛脷麓忙
 //     static char mem_buffer[DEBUG_BUFFER_SIZE];
 //     if (gdb_read_memory(addr, mem_buffer, len) < 0) {
 //         gdb_send_error(0);
 //         return;
 //     }
 
-//     // 转换为十六进制字符串
+//     // 脳陋禄禄脦陋脢庐脕霉陆酶脰脝脳脰路没麓庐
 //     static char hex_buffer[DEBUG_BUFFER_SIZE * 2];
 //     const char* hex_chars = "0123456789abcdef";
 //     int hex_pos = 0;
@@ -1121,29 +1105,29 @@ void gdb_handle_write_single_register(char* p) {
 //     gdb_send_packet(hex_buffer);
 // }
 
-// 安全的内存读取函数
+// 掳虏脠芦碌脛脛脷麓忙露脕脠隆潞炉脢媒
 int gdb_safe_read_memory(uint32_t addr, char* buffer, uint32_t len) {
-    // 安全检查1：只允许内核空间访问
+    // 掳虏脠芦录矛虏茅1拢潞脰禄脭脢脨铆脛脷潞脣驴脮录盲路脙脦脢
     // if (addr < 0xC0000000) {
-    //     Diagnose::Write("[GDB] 内存读取失败：拒绝用户空间访问 0x%08x\n", addr);
+    //     Diagnose::Write("[GDB] 脛脷麓忙露脕脠隆脢搂掳脺拢潞戮脺戮酶脫脙禄搂驴脮录盲路脙脦脢 0x%08x\n", addr);
     //     return -1;
     // }
     
-    // 安全检查2：边界检查
+    // 掳虏脠芦录矛虏茅2拢潞卤脽陆莽录矛虏茅
     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
-        Diagnose::Write("[GDB] 内存读取失败：无效长度 %u\n", len);
+        Diagnose::Write("[GDB] 脛脷麓忙露脕脠隆脢搂掳脺拢潞脦脼脨搂鲁陇露脠 %u\n", len);
         return -1;
     }
     
-    // 安全检查3：地址范围检查
-    if (addr >= 0xc0400000) {  // 检查溢出
-        Diagnose::Write("[GDB] 内存读取失败：地址溢出 0x%08x + %u\n", addr, len);
+    // 掳虏脠芦录矛虏茅3拢潞碌脴脰路路露脦搂录矛虏茅
+    if (addr >= 0xc0400000) {  // 录矛虏茅脪莽鲁枚
+        Diagnose::Write("[GDB] 脛脷麓忙露脕脠隆脢搂掳脺拢潞碌脴脰路脪莽鲁枚 0x%08x + %u\n", addr, len);
         return -1;
     }
     
-    Diagnose::Write("[GDB] 安全读取: 地址=0x%08x, 长度=%u\n", addr, len);
+    Diagnose::Write("[GDB] 掳虏脠芦露脕脠隆: 碌脴脰路=0x%08x, 鲁陇露脠=%u\n", addr, len);
     
-    // 直接内存读取
+    // 脰卤陆脫脛脷麓忙露脕脠隆
     for (uint32_t i = 0; i < len; i++) {
         char* src = (char*)(addr + i);
         buffer[i] = *src;
@@ -1153,14 +1137,14 @@ int gdb_safe_read_memory(uint32_t addr, char* buffer, uint32_t len) {
 }
 
 void gdb_handle_read_memory(char* packet) {
-    // 格式: maddr,length
+    // 赂帽脢陆: maddr,length
     char* comma = gdb_strchr(packet, ',');
     if (!comma) {
         gdb_send_packet("E01");
         return;
     }
     
-    // 提取地址
+    // 脤谩脠隆碌脴脰路
     int addr_len = comma - (packet + 1);
     char addr_hex[9] = {0};
     for (int i = 0; i < addr_len && i < 8; i++) {
@@ -1168,32 +1152,32 @@ void gdb_handle_read_memory(char* packet) {
     }
     addr_hex[addr_len] = '\0';
     
-    // 关键修改：统一使用直接解析，不进行字节序转换
+    // 鹿脴录眉脨脼赂脛拢潞脥鲁脪禄脢鹿脫脙脰卤陆脫陆芒脦枚拢卢虏禄陆酶脨脨脳脰陆脷脨貌脳陋禄禄
     uint32_t host_addr = hex_str_to_uint(addr_hex);
     
-    // 解析长度
+    // 陆芒脦枚鲁陇露脠
     char* len_str = comma + 1;
     uint32_t len = hex_str_to_uint(len_str);
     
-    // 限制长度
+    // 脧脼脰脝鲁陇露脠
     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
         len = DEBUG_BUFFER_SIZE;
     }
     
-    // 安全检查
+    // 掳虏脠芦录矛虏茅
     if (host_addr >= 0xc0400000) {
         gdb_send_packet("E00");
         return;
     }
     
-    // 内存读取 - 使用正确的host_addr
+    // 脛脷麓忙露脕脠隆 - 脢鹿脫脙脮媒脠路碌脛host_addr
     static char mem_buffer[DEBUG_BUFFER_SIZE];
     if (gdb_safe_read_memory(host_addr, mem_buffer, len) < 0) {
         gdb_send_packet("E02");
         return;
     }
     
-    // 转换为十六进制
+    // 脳陋禄禄脦陋脢庐脕霉陆酶脰脝
     static char hex_buffer[DEBUG_BUFFER_SIZE * 2 + 1];
     const char hex_chars[] = "0123456789abcdef";
     
@@ -1208,16 +1192,16 @@ void gdb_handle_read_memory(char* packet) {
 }
 
 
-// 处理写入内存命令（格式：M地址,长度:数据）
+// 麓娄脌铆脨麓脠毛脛脷麓忙脙眉脕卯拢篓赂帽脢陆拢潞M碌脴脰路,鲁陇露脠:脢媒戮脻拢漏
 // void gdb_handle_write_memory(char* p) {
-//     // 解析地址和长度
+//     // 陆芒脦枚碌脴脰路潞脥鲁陇露脠
 //     uint32_t addr = 0;
 //     uint32_t len = 0;
 
-//     // 跳过 'M' 前缀
+//     // 脤酶鹿媒 'M' 脟掳脳潞
 //     char* ptr = p + 1;
 
-//     // 解析地址
+//     // 陆芒脦枚碌脴脰路
 //     while (*ptr != ',' && *ptr != '\0') {
 //         char c = *ptr++;
 //         if (c >= '0' && c <= '9') {
@@ -1229,10 +1213,10 @@ void gdb_handle_read_memory(char* packet) {
 //         }
 //     }
 
-//     // 跳过 ','
+//     // 脤酶鹿媒 ','
 //     if (*ptr == ',') ptr++;
 
-//     // 解析长度
+//     // 陆芒脦枚鲁陇露脠
 //     while (*ptr != ':' && *ptr != '\0') {
 //         char c = *ptr++;
 //         if (c >= '0' && c <= '9') {
@@ -1244,10 +1228,10 @@ void gdb_handle_read_memory(char* packet) {
 //         }
 //     }
 
-//     // 跳过 ':'
+//     // 脤酶鹿媒 ':'
 //     if (*ptr == ':') ptr++;
 
-//     // 解析数据
+//     // 陆芒脦枚脢媒戮脻
 //     static char data_buffer[DEBUG_BUFFER_SIZE];
 //     const char* hex_chars = "0123456789abcdef";
 
@@ -1268,7 +1252,7 @@ void gdb_handle_read_memory(char* packet) {
 //         data_buffer[i] = byte;
 //     }
 
-//     // 写入内存
+//     // 脨麓脠毛脛脷麓忙
 //     if (gdb_write_memory(addr, data_buffer, len) < 0) {
 //         gdb_send_error(0);
 //         return;
@@ -1278,27 +1262,27 @@ void gdb_handle_read_memory(char* packet) {
 // }
 
 int gdb_safe_write_memory(uint32_t addr, const char* data, uint32_t len) {
-    // 安全检查1：只允许内核空间访问
+    // 掳虏脠芦录矛虏茅1拢潞脰禄脭脢脨铆脛脷潞脣驴脮录盲路脙脦脢
     // if (addr < 0xC0000000) {
     //     return -1;
     // }
     
-    // 安全检查2：边界检查
+    // 掳虏脠芦录矛虏茅2拢潞卤脽陆莽录矛虏茅
     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
         return -1;
     }
     
-    if (addr >= 0xc0400000) {  // 检查溢出
-        Diagnose::Write("[GDB] 内存读取失败：地址溢出 0x%08x + %u\n", addr, len);
+    if (addr >= 0xc0400000) {  // 录矛虏茅脪莽鲁枚
+        Diagnose::Write("[GDB] 脛脷麓忙露脕脠隆脢搂掳脺拢潞碌脴脰路脪莽鲁枚 0x%08x + %u\n", addr, len);
         return -1;
     }
 
-    // 安全检查3：地址范围检查
-    if (addr + len < addr) {  // 检查溢出
+    // 掳虏脠芦录矛虏茅3拢潞碌脴脰路路露脦搂录矛虏茅
+    if (addr + len < addr) {  // 录矛虏茅脪莽鲁枚
         return -1;
     }
     
-    // 直接内存写入
+    // 脰卤陆脫脛脷麓忙脨麓脠毛
     for (uint32_t i = 0; i < len; i++) {
         char* dest = (char*)(addr + i);
         *dest = data[i];
@@ -1308,24 +1292,24 @@ int gdb_safe_write_memory(uint32_t addr, const char* data, uint32_t len) {
 }
 
 // void gdb_handle_write_memory(char* packet) {
-//     Diagnose::Write("[GDB] 内存写入: %s\n", packet);
+//     Diagnose::Write("[GDB] 脛脷麓忙脨麓脠毛: %s\n", packet);
     
-//     // 格式: Maddr,length:data
+//     // 赂帽脢陆: Maddr,length:data
 //     char* comma = gdb_strchr(packet, ',');
 //     if (!comma) {
-//         Diagnose::Write("[GDB] 无效格式: 缺少逗号\n");
+//         Diagnose::Write("[GDB] 脦脼脨搂赂帽脢陆: 脠卤脡脵露潞潞脜\n");
 //         gdb_send_packet("E01");
 //         return;
 //     }
     
 //     char* colon = gdb_strchr(comma, ':');
 //     if (!colon) {
-//         Diagnose::Write("[GDB] 无效格式: 缺少冒号\n");
+//         Diagnose::Write("[GDB] 脦脼脨搂赂帽脢陆: 脠卤脡脵脙掳潞脜\n");
 //         gdb_send_packet("E01");
 //         return;
 //     }
     
-//     // 提取地址
+//     // 脤谩脠隆碌脴脰路
 //     int addr_len = comma - (packet + 1);
 //     char addr_hex[9] = {0};
 //     for (int i = 0; i < addr_len && i < 8; i++) {
@@ -1335,7 +1319,7 @@ int gdb_safe_write_memory(uint32_t addr, const char* data, uint32_t len) {
     
 //     uint32_t host_addr = gdb_hex_to_host32(addr_hex);
     
-//     // 提取长度
+//     // 脤谩脠隆鲁陇露脠
 //     int len_len = colon - (comma + 1);
 //     char len_hex[9] = {0};
 //     for (int i = 0; i < len_len && i < 8; i++) {
@@ -1345,32 +1329,32 @@ int gdb_safe_write_memory(uint32_t addr, const char* data, uint32_t len) {
     
 //     uint32_t len = hex_str_to_uint(len_hex);
     
-//     // 提取数据
+//     // 脤谩脠隆脢媒戮脻
 //     char* data_str = colon + 1;
 //     int data_len = gdb_strlen(data_str);
     
-//     // 验证数据长度
+//     // 脩茅脰陇脢媒戮脻鲁陇露脠
 //     if (data_len != len * 2) {
-//         Diagnose::Write("[GDB] 数据长度不匹配: 期望=%u, 实际=%u\n", len * 2, data_len);
+//         Diagnose::Write("[GDB] 脢媒戮脻鲁陇露脠虏禄脝楼脜盲: 脝脷脥没=%u, 脢碌录脢=%u\n", len * 2, data_len);
 //         gdb_send_packet("E03");
 //         return;
 //     }
     
-//     Diagnose::Write("[GDB] 解析: 地址=0x%08x, 长度=%u\n", host_addr, len);
+//     Diagnose::Write("[GDB] 陆芒脦枚: 碌脴脰路=0x%08x, 鲁陇露脠=%u\n", host_addr, len);
     
-//     // 限制长度
+//     // 脧脼脰脝鲁陇露脠
 //     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
 //         len = DEBUG_BUFFER_SIZE;
 //     }
     
-//     // 安全检查
+//     // 掳虏脠芦录矛虏茅
 //     if (host_addr < 0xC0000000) {
-//         Diagnose::Write("[GDB] 拒绝用户空间写入: 0x%08x\n", host_addr);
+//         Diagnose::Write("[GDB] 戮脺戮酶脫脙禄搂驴脮录盲脨麓脠毛: 0x%08x\n", host_addr);
 //         gdb_send_packet("E00");
 //         return;
 //     }
     
-//     // 解析十六进制数据
+//     // 陆芒脦枚脢庐脕霉陆酶脰脝脢媒戮脻
 //     static char data_buffer[DEBUG_BUFFER_SIZE];
 //     for (uint32_t i = 0; i < len; i++) {
 //         char c1 = data_str[i*2];
@@ -1380,17 +1364,17 @@ int gdb_safe_write_memory(uint32_t addr, const char* data, uint32_t len) {
 //         data_buffer[i] = (char)byte;
 //     }
     
-//     // 写入内存
+//     // 脨麓脠毛脛脷麓忙
 //     // if (gdb_safe_write_memory(host_addr, data_buffer, len) < 0) {
 //     //     gdb_send_packet("E02");
 //     //     return;
 //     // }
     
-//     Diagnose::Write("[GDB] 写入成功: 地址=0x%08x\n", host_addr);
+//     Diagnose::Write("[GDB] 脨麓脠毛鲁脡鹿娄: 碌脴脰路=0x%08x\n", host_addr);
 //     gdb_send_packet("OK");
 // }
 void gdb_handle_write_memory(char* packet) {
-    // 格式: Maddr,length:data
+    // 赂帽脢陆: Maddr,length:data
     char* comma = gdb_strchr(packet, ',');
     if (!comma) {
         gdb_send_packet("E01");
@@ -1403,7 +1387,7 @@ void gdb_handle_write_memory(char* packet) {
         return;
     }
     
-    // 提取地址 - 关键修改：直接解析，不进行字节序转换
+    // 脤谩脠隆碌脴脰路 - 鹿脴录眉脨脼赂脛拢潞脰卤陆脫陆芒脦枚拢卢虏禄陆酶脨脨脳脰陆脷脨貌脳陋禄禄
     int addr_len = comma - (packet + 1);
     char addr_hex[9] = {0};
     for (int i = 0; i < addr_len && i < 8; i++) {
@@ -1411,10 +1395,10 @@ void gdb_handle_write_memory(char* packet) {
     }
     addr_hex[addr_len] = '\0';
     
-    // 关键修改：直接解析十六进制字符串为uint32_t
+    // 鹿脴录眉脨脼赂脛拢潞脰卤陆脫陆芒脦枚脢庐脕霉陆酶脰脝脳脰路没麓庐脦陋uint32_t
     uint32_t host_addr = hex_str_to_uint(addr_hex);
     
-    // 提取长度
+    // 脤谩脠隆鲁陇露脠
     int len_len = colon - (comma + 1);
     char len_hex[9] = {0};
     for (int i = 0; i < len_len && i < 8; i++) {
@@ -1424,28 +1408,28 @@ void gdb_handle_write_memory(char* packet) {
     
     uint32_t len = hex_str_to_uint(len_hex);
     
-    // 提取数据
+    // 脤谩脠隆脢媒戮脻
     char* data_str = colon + 1;
     int data_len = gdb_strlen(data_str);
     
-    // 验证数据长度
+    // 脩茅脰陇脢媒戮脻鲁陇露脠
     if (data_len != len * 2) {
         gdb_send_packet("E03");
         return;
     }
     
-    // 限制长度
+    // 脧脼脰脝鲁陇露脠
     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
         len = DEBUG_BUFFER_SIZE;
     }
     
-    // 安全检查
+    // 掳虏脠芦录矛虏茅
     if (host_addr < 0xC0000000) {
         gdb_send_packet("E00");
         return;
     }
     
-    // 解析十六进制数据
+    // 陆芒脦枚脢庐脕霉陆酶脰脝脢媒戮脻
     static char data_buffer[DEBUG_BUFFER_SIZE];
     for (uint32_t i = 0; i < len; i++) {
         char c1 = data_str[i*2];
@@ -1455,7 +1439,7 @@ void gdb_handle_write_memory(char* packet) {
         data_buffer[i] = (char)byte;
     }
     
-    // 关键修改：取消注释，启用内存写入
+    // 鹿脴录眉脨脼赂脛拢潞脠隆脧没脳垄脢脥拢卢脝么脫脙脛脷麓忙脨麓脠毛
     if (gdb_safe_write_memory(host_addr, data_buffer, len) < 0) {
         gdb_send_packet("E02");
         return;
@@ -1465,16 +1449,16 @@ void gdb_handle_write_memory(char* packet) {
 }
 
 void gdb_handle_binary_write_memory(char* packet) {
-    // 格式: Xaddr,length:binary_data
+    // 赂帽脢陆: Xaddr,length:binary_data
     char* comma = gdb_strchr(packet, ',');
     char* colon = gdb_strchr(comma, ':');
     
     if (!comma || !colon) {
-        gdb_send_packet("E01");  // 格式错误
+        gdb_send_packet("E01");  // 赂帽脢陆麓铆脦贸
         return;
     }
     
-    // 提取地址
+    // 脤谩脠隆碌脴脰路
     int addr_len = comma - (packet + 1);
     if (addr_len <= 0 || addr_len > 8) {
         gdb_send_packet("E01");
@@ -1488,7 +1472,7 @@ void gdb_handle_binary_write_memory(char* packet) {
     addr_hex[addr_len] = '\0';
     uint32_t host_addr = hex_str_to_uint(addr_hex);
     
-    // 提取长度
+    // 脤谩脠隆鲁陇露脠
     int len_len = colon - (comma + 1);
     if (len_len <= 0 || len_len > 8) {
         gdb_send_packet("E01");
@@ -1502,27 +1486,27 @@ void gdb_handle_binary_write_memory(char* packet) {
     len_hex[len_len] = '\0';
     uint32_t len = hex_str_to_uint(len_hex);
     
-    // 提取二进制数据
+    // 脤谩脠隆露镁陆酶脰脝脢媒戮脻
     char* binary_data = colon + 1;
     int data_len = gdb_strlen(binary_data);
     
-    // 关键修复：验证数据长度
+    // 鹿脴录眉脨脼赂麓拢潞脩茅脰陇脢媒戮脻鲁陇露脠
     if (data_len != len) {
-        gdb_send_packet("E03");  // 数据长度不匹配
+        gdb_send_packet("E03");  // 脢媒戮脻鲁陇露脠虏禄脝楼脜盲
         return;
     }
     
-    // 限制长度
+    // 脧脼脰脝鲁陇露脠
     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
-        gdb_send_packet("E02");  // 长度错误
+        gdb_send_packet("E02");  // 鲁陇露脠麓铆脦贸
         return;
     }
     
-    Diagnose::Write("[GDB] 二进制写入: 地址=0x%08x, 长度=%u\n", host_addr, len);
+    Diagnose::Write("[GDB] 露镁陆酶脰脝脨麓脠毛: 碌脴脰路=0x%08x, 鲁陇露脠=%u\n", host_addr, len);
     
-    // 安全写入
+    // 掳虏脠芦脨麓脠毛
     if (gdb_safe_write_memory(host_addr, binary_data, len) < 0) {
-        gdb_send_packet("E04");  // 写入失败
+        gdb_send_packet("E04");  // 脨麓脠毛脢搂掳脺
         return;
     }
     
@@ -1530,7 +1514,7 @@ void gdb_handle_binary_write_memory(char* packet) {
 }
 
 
-// 处理设置断点命令（格式：Z类型,地址,长度）
+// 麓娄脌铆脡猫脰脙露脧碌茫脙眉脕卯拢篓赂帽脢陆拢潞Z脌脿脨脥,碌脴脰路,鲁陇露脠拢漏
 // void gdb_handle_set_breakpoint(char* p) {
 //     if (p[0] != 'Z') {
 //         gdb_send_error(0);
@@ -1541,13 +1525,13 @@ void gdb_handle_binary_write_memory(char* packet) {
 //     GDBBreakpointType type;
 //     uint32_t addr;
 
-//     // 解析类型
+//     // 陆芒脦枚脌脿脨脥
 //     type = (GDBBreakpointType)(*ptr++ - '0');
 
-//     // 跳过 ','
+//     // 脤酶鹿媒 ','
 //     if (*ptr == ',') ptr++;
 
-//     // 解析地址
+//     // 陆芒脦枚碌脴脰路
 //     addr = 0;
 //     while (*ptr != ',' && *ptr != '\0') {
 //         char c = *ptr++;
@@ -1560,7 +1544,7 @@ void gdb_handle_binary_write_memory(char* packet) {
 //         }
 //     }
 
-//     // 添加断点
+//     // 脤铆录脫露脧碌茫
 //     if (gdb_add_breakpoint(addr, type) != 0) {
 //         gdb_send_error(1);
 //     } else {
@@ -1577,13 +1561,13 @@ void gdb_handle_set_breakpoint(char* p) {
     GDBBreakpointType type;
     uint32_t addr;
 
-    // 解析类型
+    // 陆芒脦枚脌脿脨脥
     type = (GDBBreakpointType)(*ptr++ - '0');
 
-    // 跳过 ','
+    // 脤酶鹿媒 ','
     if (*ptr == ',') ptr++;
 
-    // 关键修改：提取十六进制字符串，直接解析（不进行字节序转换）
+    // 鹿脴录眉脨脼赂脛拢潞脤谩脠隆脢庐脕霉陆酶脰脝脳脰路没麓庐拢卢脰卤陆脫陆芒脦枚拢篓虏禄陆酶脨脨脳脰陆脷脨貌脳陋禄禄拢漏
     char addr_hex[9] = {0};
     int addr_len = 0;
     
@@ -1592,16 +1576,16 @@ void gdb_handle_set_breakpoint(char* p) {
     }
     addr_hex[addr_len] = '\0';
     
-    // 直接解析为uint32_t（不进行字节序转换）
+    // 脰卤陆脫陆芒脦枚脦陋uint32_t拢篓虏禄陆酶脨脨脳脰陆脷脨貌脳陋禄禄拢漏
     addr = hex_str_to_uint(addr_hex);
     
-    // 安全检查：确保是内核空间地址
+    // 掳虏脠芦录矛虏茅拢潞脠路卤拢脢脟脛脷潞脣驴脮录盲碌脴脰路
     if (addr < 0xC0000000) {
-        gdb_send_error(0);  // 拒绝用户空间断点
+        gdb_send_error(0);  // 戮脺戮酶脫脙禄搂驴脮录盲露脧碌茫
         return;
     }
 
-    // 添加断点
+    // 脤铆录脫露脧碌茫
     if (gdb_add_breakpoint(addr, type) != 0) {
         gdb_send_error(1);
     } else {
@@ -1609,7 +1593,7 @@ void gdb_handle_set_breakpoint(char* p) {
     }
 }
 
-// 处理移除断点命令（格式：z类型,地址,长度）
+// 麓娄脌铆脪脝鲁媒露脧碌茫脙眉脕卯拢篓赂帽脢陆拢潞z脌脿脨脥,碌脴脰路,鲁陇露脠拢漏
 // void gdb_handle_remove_breakpoint(char* p) {
 //     if (p[0] != 'z') {
 //         gdb_send_error(0);
@@ -1620,13 +1604,13 @@ void gdb_handle_set_breakpoint(char* p) {
 //     GDBBreakpointType type;
 //     uint32_t addr;
 
-//     // 解析类型
+//     // 陆芒脦枚脌脿脨脥
 //     type = (GDBBreakpointType)(*ptr++ - '0');
 
-//     // 跳过 ','
+//     // 脤酶鹿媒 ','
 //     if (*ptr == ',') ptr++;
 
-//     // 解析地址
+//     // 陆芒脦枚碌脴脰路
 //     addr = 0;
 //     while (*ptr != ',' && *ptr != '\0') {
 //         char c = *ptr++;
@@ -1639,7 +1623,7 @@ void gdb_handle_set_breakpoint(char* p) {
 //         }
 //     }
 
-//     // 移除断点
+//     // 脪脝鲁媒露脧碌茫
 //     if (gdb_remove_breakpoint(addr) != 0) {
 //         gdb_send_error(1);
 //     } else {
@@ -1657,7 +1641,7 @@ void gdb_handle_remove_breakpoint(char* p) {
     
     if (*ptr == ',') ptr++;
     
-    // 提取地址字符串
+    // 脤谩脠隆碌脴脰路脳脰路没麓庐
     char addr_hex[9] = {0};
     int addr_len = 0;
     
@@ -1666,16 +1650,16 @@ void gdb_handle_remove_breakpoint(char* p) {
     }
     addr_hex[addr_len] = '\0';
     
-    // 直接解析地址（不进行字节序转换）
+    // 脰卤陆脫陆芒脦枚碌脴脰路拢篓虏禄陆酶脨脨脳脰陆脷脨貌脳陋禄禄拢漏
     uint32_t addr = hex_str_to_uint(addr_hex);
     
-    // 安全检查
+    // 掳虏脠芦录矛虏茅
     if (addr < 0xC0000000) {
         gdb_send_error(0);
         return;
     }
 
-    // 移除断点
+    // 脪脝鲁媒露脧碌茫
     if (gdb_remove_breakpoint(addr) != 0) {
         gdb_send_error(1);
     } else {
@@ -1684,7 +1668,6 @@ void gdb_handle_remove_breakpoint(char* p) {
 }
 
 void gdb_handle_query(char* p) {
-    // 调试日志（您的实现很好）
     char query_msg[DEBUG_BUFFER_SIZE + 100];
     int pos = 0;
     const char* prefix = "[GDB] Query packet: ";
@@ -1697,72 +1680,72 @@ void gdb_handle_query(char* p) {
     query_msg[pos] = '\0';
     Diagnose::Write(query_msg);
 
-    // qSupported - GDB 特性查询
+    // qSupported - GDB 脤脴脨脭虏茅脩炉
     if (strncmp(p, "qSupported", 10) == 0) {
         gdb_send_packet((char*)"PacketSize=1000;qRelocInsn+;multiprocess+;vContSupported+;QStartNoAckMode-;timeout-;qXfer:features:read-;qXfer:threads:read-");
         return;
     }
 
-    // vMustReplyEmpty - 必须回复空
+    // vMustReplyEmpty - 卤脴脨毛禄脴赂麓驴脮
     if (strcmp(p, "vMustReplyEmpty") == 0) {
         gdb_send_packet((char*)"");
         return;
     }
 
-    // vCont? - 查询支持的继续命令
+    // vCont? - 虏茅脩炉脰搂鲁脰碌脛录脤脨酶脙眉脕卯
     if (strcmp(p, "vCont?") == 0) {
         gdb_send_packet((char*)"vCont;c;C;s;S");
         return;
     }
 
-    // qC - 查询当前线程 ID
+    // qC - 虏茅脩炉碌卤脟掳脧脽鲁脤 ID
     if (strcmp(p, "qC") == 0) {
         gdb_send_packet((char*)"QC1");
         return;
     }
 
-    // qAttached - 查询是否attached
+    // qAttached - 虏茅脩炉脢脟路帽attached
     if (strcmp(p, "qAttached") == 0) {
         gdb_send_packet((char*)"1");
         return;
     }
 
-    // qTStatus - 线程状态查询
+    // qTStatus - 脧脽鲁脤脳麓脤卢虏茅脩炉
     if (strcmp(p, "qTStatus") == 0) {
-        gdb_send_packet((char*)"T0");  // 不支持跟踪
+        gdb_send_packet((char*)"T0");  // 虏禄脰搂鲁脰赂煤脳脵
         return;
     }
 
-    // qfThreadInfo - 查询第一个线程
+    // qfThreadInfo - 虏茅脩炉碌脷脪禄赂枚脧脽鲁脤
     if (strcmp(p, "qfThreadInfo") == 0) {
-        gdb_send_packet((char*)"m1");  // 单线程系统，只有线程1
+        gdb_send_packet((char*)"m1");  // 碌楼脧脽鲁脤脧碌脥鲁拢卢脰禄脫脨脧脽鲁脤1
         return;
     }
 
-    // qsThreadInfo - 查询下一个线程
+    // qsThreadInfo - 虏茅脩炉脧脗脪禄赂枚脧脽鲁脤
     if (strcmp(p, "qsThreadInfo") == 0) {
-        gdb_send_packet((char*)"l");   // 列表结束
+        gdb_send_packet((char*)"l");   // 脕脨卤铆陆谩脢酶
         return;
     }
 
-    // QStartNoAckMode - 禁用ACK模式
+    // QStartNoAckMode - 陆没脫脙ACK脛拢脢陆
     if (strcmp(p, "QStartNoAckMode") == 0) {
-        gdb_send_packet((char*)"OK");  // 确认支持
+        gdb_send_packet((char*)"OK");  // 脠路脠脧脰搂鲁脰
         return;
     }
 
     if (strcmp(p, "?") == 0) {
-        gdb_send_packet("S05");  // 发送停止信号
-        Diagnose::Write("[GDB] 响应信号查询\n");
+        gdb_send_packet("S05");  // 路垄脣脥脥拢脰鹿脨脜潞脜
+        Diagnose::Write("[GDB] 脧矛脫娄脨脜潞脜虏茅脩炉\n");
     }
 
-    // 其他查询命令返回空
+    // 脝盲脣没虏茅脩炉脙眉脕卯路碌禄脴驴脮
     gdb_send_packet((char*)"");
 }
 
-// 处理信号命令
+// 麓娄脌铆脨脜潞脜脙眉脕卯
 void gdb_handle_signal(char* p) {
-    // 发送停止信号 (S05 = SIGTRAP)
+    // 路垄脣脥脥拢脰鹿脨脜潞脜 (S05 = SIGTRAP)
     gdb_send_packet((char*)"S05");
 }
 

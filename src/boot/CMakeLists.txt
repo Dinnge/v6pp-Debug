@@ -1,6 +1,6 @@
 #[[
-    启动引导构建文件
-    创建于 2024年4月28日 上海市嘉定区安亭镇
+    脝么露炉脪媒碌录鹿鹿陆篓脦脛录镁
+    麓麓陆篓脫脷 2024脛锚4脭脗28脠脮 脡脧潞拢脢脨录脦露篓脟酶掳虏脥陇脮貌
 
     by 2051565 GTY
 ]]
@@ -8,7 +8,7 @@
 
 set(BOOT_OUTPUT_DIR "${CMAKE_SOURCE_DIR}/../target/objs/boot")
 
-# 使用 Ninja 时，输出路径会出现问题。
+# 脢鹿脫脙 Ninja 脢卤拢卢脢盲鲁枚脗路戮露禄谩鲁枚脧脰脦脢脤芒隆拢
 set(BOOT_OUTPUT_DIR_NINJA "${CMAKE_SOURCE_DIR}/../target/objs")
 
 file(MAKE_DIRECTORY ${BOOT_OUTPUT_DIR})
@@ -21,11 +21,14 @@ enable_language(ASM_NASM)
 add_executable(boot boot.asm)
 
 
-# sector2 要作为整个内核代码的入口。需要单独构建。
-# 链接时，它会被指定放到开头位置。
+# sector2 脪陋脳梅脦陋脮没赂枚脛脷潞脣麓煤脗毛碌脛脠毛驴脷隆拢脨猫脪陋碌楼露脌鹿鹿陆篓隆拢
+# 脕麓陆脫脢卤拢卢脣眉禄谩卤禄脰赂露篓路脜碌陆驴陋脥路脦禄脰脙隆拢
 add_custom_command(
     OUTPUT ${BOOT_OUTPUT_DIR}/sector2.o
-    COMMAND nasm -f elf32 ${CMAKE_CURRENT_SOURCE_DIR}/sector2.asm -o ${BOOT_OUTPUT_DIR}/sector2.o
+    COMMAND nasm -f elf32
+            $<$<BOOL:${EARLY_BOOT_GDB}>:-dEARLY_BOOT_GDB>
+            ${CMAKE_CURRENT_SOURCE_DIR}/sector2.asm
+            -o ${BOOT_OUTPUT_DIR}/sector2.o
 )
 set(NULL_CPP_FILE_PATH "${CMAKE_BINARY_DIR}/_yros_cmake_hack/null.cpp")
 file(WRITE ${NULL_CPP_FILE_PATH} "")

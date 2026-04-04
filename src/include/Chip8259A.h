@@ -54,6 +54,7 @@ public:
 	static const unsigned int IRQ_TIMER = 0;	/* 时钟中断(IRQ0)发送到IR0引脚 */
 	static const unsigned int IRQ_KBD	= 1;	/* 键盘中断(IRQ1)发送到IR1引脚 */
 	static const unsigned int IRQ_SLAVE = 2;	/* 级联模式下,从片发出的中断(Slave的INT引脚),发送到主片的IR2 */
+	static const unsigned int IRQ_COM1 = 4;   /* COM1 串口中断 (IRQ4) */
 	
 	/* 从片(IR0~IR7)连接到的外设对应的中断请求引脚,这里只用到的外设是硬盘 */
 	static const unsigned int IRQ_IDE	= 14;	/* 硬盘中断(IRQ14)发送到从片IR6引脚 */

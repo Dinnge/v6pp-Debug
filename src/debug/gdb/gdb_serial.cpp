@@ -3,6 +3,7 @@
 
 #include "gdb_serial.h"
 #include "../../include/Video.h"
+#include "../../include/Chip8259A.h"
 
 // 初始化标志
 static int g_serial_initialized = 0;
@@ -43,11 +44,15 @@ int serial_init(void) {
     // DLAB = 0, 8位数据，无校验，1停止位
     outb(SERIAL_LINE_CMD_PORT(base), 0x03);
 
+    // 启用接收中断（IER: Received Data Available Interrupt Enable）
+    outb(base + 1, 0x00);
+    outb(base + 4, 0x0B);
+    
     // 启用 FIFO，清空 FIFO，设置 14 字节阈值
     outb(SERIAL_FIFO_CMD_PORT(base), 0xC7);
 
     // 启用 RTS 和 DSR
-    outb(SERIAL_MODEM_CMD_PORT(base), 0x03);
+    outb(SERIAL_MODEM_CMD_PORT(base), 0x0B);
 
     g_serial_initialized = 1;
 
@@ -58,6 +63,16 @@ int serial_init(void) {
 }
 
 // 发送一个字节
+void serial_set_rx_interrupt_enabled(int enabled) {
+    unsigned short base = SERIAL_COM1_BASE;
+    outb(base + 1, enabled ? 0x01 : 0x00);
+    if (enabled) {
+        Chip8259A::IrqEnable(Chip8259A::IRQ_COM1);
+    } else {
+        Chip8259A::IrqDisable(Chip8259A::IRQ_COM1);
+    }
+}
+
 void serial_outb(unsigned char data) {
     unsigned short base = SERIAL_COM1_BASE;
 

@@ -52,6 +52,7 @@ int serial_recv_packet(char* buffer, int max_len);
 int check_for_interrupt(void);
 
 int serial_recv_packet_with_interrupt(char* buffer, int max_len);
+void serial_set_rx_interrupt_enabled(int enabled);
 
 // ·¢ËÍACKÈ·ÈÏ
 void serial_send_ack(void);

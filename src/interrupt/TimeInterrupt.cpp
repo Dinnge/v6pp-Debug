@@ -4,6 +4,8 @@
 #include "IOPort.h"
 #include "Chip8259A.h"
 #include "Video.h"
+#include "../debug/debug.h"
+#include "../debug/gdb/gdb_serial.h"
 
 int Time::lbolt = 0;
 unsigned int Time::time = 0;
@@ -51,6 +53,15 @@ void Time::TimeInterruptEntrance()
 
 void Time::Clock( struct pt_regs* regs, struct pt_context* context )
 {
+	/* Fallback pause path: while target is running, poll serial for Ctrl+C (0x03). */
+	if (debugger_is_target_running() && check_for_interrupt())
+	{
+		Diagnose::Write("[DBG] pause request seen in timer IRQ\n");
+		IOPort::OutByte(Chip8259A::MASTER_IO_PORT_1, Chip8259A::EOI);
+		asm volatile("int $0x01");
+		return;
+	}
+
 	User& u = Kernel::Instance().GetUser();
 	ProcessManager& procMgr = Kernel::Instance().GetProcessManager();
 

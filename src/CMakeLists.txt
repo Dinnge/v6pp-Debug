@@ -1,16 +1,16 @@
 #[[
-    Unix V6++ Tongji 露楼虏茫鹿鹿脭矛脦脛录镁
-    麓麓陆篓脫脷 2024脛锚4脭脗28脠脮 脡脧潞拢脢脨录脦露篓脟酶掳虏脥陇脮貌
+    Unix V6++ Tongji 内核项目
+    最后修改 2024年4月28日 下午 由 GTY 提交
 
     by 2051565 GTY
 ]]
 
 cmake_minimum_required(VERSION 3.20)
 
-# 驴脡脩隆脧卯
+# 项目选项
 option(USE_VESA "enable VESA support and use it as console's backend." ON)
 option(ENABLE_SPLASH "enable splash at boot." ON)
-option(EARLY_BOOT_GDB "enable early boot GDB handoff in kernelBridge." OFF)
+option(EARLY_BOOT_GDB "enable early boot GDB handoff in kernelBridge." ON)
 option(KERNEL_GDB_AUTOSTART "enable kernel-stage GDB autostart in main0." OFF)
 
 
@@ -22,17 +22,17 @@ set(V6PP_BUILD_TIME_HUMAN_READABLE ${build_time_human_readable})
 project(UnixV6ppTJ)
 
 
-# 脰赂露篓脢鹿脫脙 C++20
+# 设置 C++20 标准
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 
-# VESA Support
+# VESA 支持
 if (USE_VESA)
     add_compile_definitions(USE_VESA)
 endif()
 
-# splash
+# 启动画面
 if (ENABLE_SPLASH)
     add_compile_definitions(ENABLE_SPLASH)
 endif()
@@ -46,20 +46,20 @@ if (KERNEL_GDB_AUTOSTART)
 endif()
 
 
-# 脡猫脰脙 nasm 禄茫卤脿
-# 脢碌录脢脨猫脪陋脢鹿脫脙 nasm 脢卤拢卢
-# 脨猫脪陋脭脷脳脫 CMakeLists.txt 脛脷脡猫脰脙 enable_language
+# 配置 NASM 汇编器
+# 允许在 CMakeLists.txt 中使用 NASM
+# 在子目录的 CMakeLists.txt 中启用语言
 set(CMAKE_ASM_NASM_SOURCE_FILE_EXTENSIONS asm)
 set(CMAKE_ASM_NASM_FLAGS "-g")
 set(CMAKE_ASM_NASM_LINK_EXECUTABLE "echo -n")
 
 
-# 脥路脦脛录镁脗路戮露隆拢
+# 包含目录
 include_directories("${PROJECT_SOURCE_DIR}")  # for modules forked from yros
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
 
-# GCC(g++) 卤脿脪毛脩隆脧卯隆拢
+# GCC 编译器选项
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32")
@@ -89,12 +89,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=always")
 
 set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS}")
 
-# 脳脫脛驴脗录隆拢
+# 添加子目录
 add_subdirectory(boot)
 
 
 #[[ 
-    脧卯脛驴鹿鹿脭矛虏煤脦茂
+    内核库
 ]]
 file(GLOB_RECURSE CPP_SOURCE_FILES *.cpp)
 file(GLOB_RECURSE C_SOURCE_FILES *.c)
@@ -107,7 +107,7 @@ set_target_properties(
 
 
 
-# 鹿鹿陆篓 kernel.exe
+# 生成 kernel.exe
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--whole-archive,-m,elf_i386,-T,${CMAKE_SOURCE_DIR}/kernel.link.ld,-static")
 
 set(NULL_CPP_FILE_PATH "${CMAKE_BINARY_DIR}/_yros_cmake_hack/null.cpp")

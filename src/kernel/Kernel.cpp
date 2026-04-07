@@ -2,6 +2,7 @@
 #include "Machine.h"
 #include "New.h"
 #include "Video.h"
+#include "../debug/fs/fs_debugger_integration.h"
 
 Kernel Kernel::instance;
 
@@ -107,6 +108,10 @@ void Kernel::InitFileSystem()
 
 	Diagnose::Write("Initialize File Manager...");
 	this->GetFileManager().Initialize();
+	Diagnose::Write("OK.\n");
+
+	Diagnose::Write("Initialize File System Debugger...");
+	fs_debugger_init(this->m_FileSystem, this->m_FileManager, this->m_BufferManager);
 	Diagnose::Write("OK.\n");
 }
 

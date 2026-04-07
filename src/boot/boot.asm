@@ -14,6 +14,7 @@ GDB_LINE_STATUS    equ 0x3FD
 %endmacro
 %endif
 
+global start
 start:
     cli
     xor ax, ax
@@ -23,19 +24,19 @@ start:
     mov esp, 0x7a00
     cld
 
-    ; --- 脗陆脙赂脙聢脙芦脗卤脗拢脗禄脗陇脙聞脗拢脙聤脗陆 ---
+    ; --- 进入保护模式 ---
     lgdt [gdtr]
     in al, 92h
     or al, 02h
-    out 92h, al     ; 脗驴脗陋脙聠脙麓 A20
+    out 92h, al     ; 启用 A20
     
     mov eax, cr0
     or al, 01h
-    mov cr0, eax    ; 脗驴脗陋脙聠脙麓 PE
+    mov cr0, eax    ; 启用 PE
     
     mov eax, cr4
     or al, 10h
-    mov cr4, eax    ; 脗驴脗陋脙聠脙麓 PSE
+    mov cr4, eax    ; 启用 PSE
     
     jmp dword 0x8:_startup
 
@@ -51,7 +52,7 @@ _startup:
     BOOT_DEBUG_HOOK
 %endif
 
-    ; --- 脗录脙聯脙聰脙聵脙聞脙職脗潞脙聥 ---
+    ; --- 加载内核 ---
     mov ecx, 398    ; KERNEL_SIZE
     mov eax, 1      ; Start LBA
     mov ebx, 0x100000
@@ -70,14 +71,14 @@ _load_kernel:
     or esp, 0xc0000000
     jmp 0x18:0xc0100000
 
-; --- 脗录脗芦脗录脙虏脗麓脙聟脙聟脙聦脗露脙聛脙聢脗隆 ---
+; --- 加载磁盘扇区 ---
 _load_sector:
     push ebp
     mov ebp, esp
     pushad
     mov dx, 0x1f2
     mov al, 1
-    out dx, al      ; 脙聣脙聢脙聡脙赂脙聤脙陆
+    out dx, al      ; 设置扇区数
     mov eax, [ebp+12]
     inc dx
     out dx, al      ; LBA Low
@@ -107,18 +108,18 @@ _load_sector:
     leave
     retn 8
 
-; --- 脙聤脙陆脗戮脙聺脙聡脙赂 ---
+; --- GDT 全局描述符表 ---
 gdt:
     dq 0
-    dq 0x00cf9a000000ffff  ; 脗麓脙潞脙聜脙芦脗露脙聨
-    dq 0x00cf92000000ffff  ; 脙聤脙陆脗戮脙聺脗露脙聨
-    dq 0x00cf9a000000ffff  ; 脗赂脙聼脗碌脙聵脙聳脗路脗麓脙潞脙聜脙芦
-    dq 0x00cf92000000ffff  ; 脗赂脙聼脗碌脙聵脙聳脗路脙聤脙陆脗戮脙聺
+    dq 0x00cf9a000000ffff  ; low-base code
+    dq 0x00cf92000000ffff  ; low-base data
+    dq 0x40cf9a000000ffff  ; high-base code
+    dq 0x40cf92000000ffff  ; high-base data
 gdtr:
     dw $-gdt-1
     dd gdt
 
-; --- GDB Stub 脗潞脙聥脙聬脙聞脙聜脙聼脗录脗颅 ---
+; --- GDB Stub 远程调试桩代码 ---
 %ifdef GDB_DEBUG
 gdb_real_init:
     mov dx, GDB_LINE_CTRL
@@ -158,7 +159,7 @@ gdb_recv_byte:
     mov bl, al
     ret
 
-; 脙聡脗驴脗陆脗隆脗碌脙聞脗陆脙聯脙聤脙聲脗潞脗炉脙聤脙陆
+; 接收完整的GDB数据包
 gdb_recv_command:
 .ws:call gdb_recv_byte
     cmp bl, '$'
@@ -168,7 +169,6 @@ gdb_recv_command:
 .sk:call gdb_recv_byte
     cmp bl, '#'
     jne .sk
-    call gdb_recv_byte  ; 脗露脙聛脙聧脙陋脙聬脗拢脙聭脙漏脗潞脙聧
     call gdb_recv_byte
     mov bl, '+'
     call gdb_send_byte
@@ -176,7 +176,7 @@ gdb_recv_command:
     ret
 
 gdb_debug_break:
-    pushad              ; 盲驴聺忙聤陇 32 盲陆聧氓聟篓氓炉聞氓颅聵氓聶篓
+    pushad              ; 保存所有32位寄存器
     mov esi, gdb_pkt_s05
     call .sz
 .cl:call gdb_recv_command
@@ -209,7 +209,7 @@ gdb_debug_break:
     mov bl, '0'
     call gdb_send_byte
     ret
-.sz:lodsb               ; 脗录脗芦脗录脙虏脙聴脙聳脗路脙禄脗麓脗庐脗路脗垄脙聥脙聧
+.sz:lodsb               ; 从内存中加载字节并发送
     test al, al
     jz .sd
     mov bl, al

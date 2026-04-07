@@ -5,14 +5,37 @@ global greatstart
 
 %ifdef EARLY_BOOT_GDB
 GDB_PORT        equ 0x3F8
+GDB_BAUD_LATCH  equ 0x3F9
+GDB_LINE_CTRL   equ 0x3FB
+GDB_MODEM_CTRL  equ 0x3FC
 GDB_LINE_STATUS equ 0x3FD
 
 section .text
 
 greatstart:
+    call serial_init
     call gdb_debug_break
+    ; 跳转到内核入口点
     jmp kernelBridge
     ud2
+
+serial_init:
+    mov dx, GDB_LINE_CTRL
+    mov al, 0x80
+    out dx, al
+    mov dx, GDB_PORT
+    mov al, 0x01
+    out dx, al
+    mov dx, GDB_BAUD_LATCH
+    xor al, al
+    out dx, al
+    mov dx, GDB_LINE_CTRL
+    mov al, 0x03
+    out dx, al
+    mov dx, GDB_MODEM_CTRL
+    mov al, 0x0b
+    out dx, al
+    ret
 
 serial_send_byte:
     mov dx, GDB_LINE_STATUS
@@ -35,12 +58,12 @@ serial_recv_byte:
     in al, dx
     ret
 
-rsp_recv_packet:
+rsp_recv_packet:     ; 在栈上分配256字节的缓冲区
 .ws:
     call serial_recv_byte
     cmp al, '$'
     jne .ws
-    mov edi, rsp_buf
+    mov edi, rsp_buf     ; 使用栈上的缓冲区
 .lp:
     call serial_recv_byte
     cmp al, '#'
@@ -52,15 +75,17 @@ rsp_recv_packet:
     call serial_recv_byte
     call serial_recv_byte
     mov bl, '+'
-    jmp serial_send_byte
+    call serial_send_byte
+    mov eax, rsp_buf     ; 释放栈上的缓冲区
+    ret
 
 rsp_begin:
-    mov byte [rsp_sum], 0
+    mov byte [rsp_checksum], 0
     mov bl, '$'
     jmp serial_send_byte
 
 rsp_emit:
-    add byte [rsp_sum], bl
+    add byte [rsp_checksum], bl
     jmp serial_send_byte
 
 hex_digit:
@@ -74,7 +99,7 @@ hex_digit:
 rsp_end:
     mov bl, '#'
     call serial_send_byte
-    mov bl, [rsp_sum]
+    mov bl, [rsp_checksum]
     mov bh, bl
     shr bl, 4
     call hex_digit
@@ -108,6 +133,13 @@ emit_hex_word:
     call emit_hex_byte
     mov bl, ah
     jmp emit_hex_byte
+
+emit_hex_dword:
+    push eax
+    call emit_hex_word
+    pop eax
+    shr eax, 16
+    jmp emit_hex_word
 
 send_empty:
     call rsp_begin
@@ -166,101 +198,191 @@ parse_hex_word_le:
     mov al, dl
     ret
 
-send_regs16:
+sync_frame_to_shadow:
+    mov eax, [ebp+28]
+    mov [reg_shadow+0], eax
+    mov eax, [ebp+24]
+    mov [reg_shadow+4], eax
+    mov eax, [ebp+20]
+    mov [reg_shadow+8], eax
+    mov eax, [ebp+16]
+    mov [reg_shadow+12], eax
+    mov eax, [ebp+12]
+    add eax, 8
+    mov [reg_shadow+16], eax
+    mov eax, [ebp+8]
+    mov [reg_shadow+20], eax
+    mov eax, [ebp+4]
+    mov [reg_shadow+24], eax
+    mov eax, [ebp]
+    mov [reg_shadow+28], eax
+    mov eax, [ebp+36]
+    mov [reg_shadow+32], eax
+    mov eax, [ebp+32]
+    mov [reg_shadow+36], eax
+    ret
+
+sync_shadow_to_frame:
+    mov eax, [reg_shadow+0]
+    mov [ebp+28], eax
+    mov eax, [reg_shadow+4]
+    mov [ebp+24], eax
+    mov eax, [reg_shadow+8]
+    mov [ebp+20], eax
+    mov eax, [reg_shadow+12]
+    mov [ebp+16], eax
+    mov eax, [reg_shadow+16]
+    sub eax, 8
+    mov [ebp+12], eax
+    mov eax, [reg_shadow+20]
+    mov [ebp+8], eax
+    mov eax, [reg_shadow+24]
+    mov [ebp+4], eax
+    mov eax, [reg_shadow+28]
+    mov [ebp], eax
+    mov eax, [reg_shadow+32]
+    mov [ebp+36], eax
+    mov eax, [reg_shadow+36]
+    mov [ebp+32], eax
+    ret
+
+send_regs32:
     call rsp_begin
-    mov ax, [esp+28]
-    call emit_hex_word
-    mov ax, [esp+24]
-    call emit_hex_word
-    mov ax, [esp+20]
-    call emit_hex_word
-    mov ax, [esp+16]
-    call emit_hex_word
-    mov ax, [esp+12]
-    call emit_hex_word
-    mov ax, [esp+8]
-    call emit_hex_word
-    mov ax, [esp+4]
-    call emit_hex_word
-    mov ax, [esp+0]
-    call emit_hex_word
-    mov ax, [esp+36]
-    call emit_hex_word
-    mov ax, [esp+32]
-    call emit_hex_word
-    mov ax, 0x18
-    call emit_hex_word
-    mov ax, 0x20
-    call emit_hex_word
-    mov ax, 0x20
-    call emit_hex_word
-    mov ax, 0x20
-    call emit_hex_word
-    xor ax, ax
-    call emit_hex_word
-    call emit_hex_word
-    call emit_hex_word
-    call emit_hex_word
+    mov eax, [reg_shadow+0]
+    call emit_hex_dword
+    mov eax, [reg_shadow+4]
+    call emit_hex_dword
+    mov eax, [reg_shadow+8]
+    call emit_hex_dword
+    mov eax, [reg_shadow+12]
+    call emit_hex_dword
+    mov eax, [reg_shadow+16]
+    call emit_hex_dword
+    mov eax, [reg_shadow+20]
+    call emit_hex_dword
+    mov eax, [reg_shadow+24]
+    call emit_hex_dword
+    mov eax, [reg_shadow+28]
+    call emit_hex_dword
+    mov eax, [reg_shadow+32]
+    call emit_hex_dword
     jmp rsp_end
 
-write_single_reg16:
+get_reg32_value:
+    cmp ecx, 0
+    jb .zero
+    cmp ecx, 8
+    jbe .shadow
+    cmp ecx, 9
+    je .efl
+    cmp ecx, 10
+    je .cs
+    cmp ecx, 11
+    je .ss
+    cmp ecx, 12
+    je .ds
+    cmp ecx, 13
+    je .es
+    jmp .zero
+.shadow:
+    lea edx, [reg_shadow + ecx*4]
+    mov eax, [edx]
+    ret
+.efl:
+    mov eax, [reg_shadow+36]
+    ret
+.cs:
+    mov eax, 0x18
+    ret
+.ss:
+    mov eax, 0x20
+    ret
+.ds:
+    mov eax, 0x20
+    ret
+.es:
+    mov eax, 0x20
+    ret
+.zero:
+    xor eax, eax
+    ret
+
+send_single_reg32:
+    lodsb
+    cmp al, 'p'
+    jne send_empty
+    mov dl, 0
+    call parse_hex_u32
+    mov ecx, eax
+    call rsp_begin
+    call get_reg32_value
+    call emit_hex_dword
+    jmp rsp_end
+
+parse_hex_dword_le:
+    call parse_hex_byte
+    movzx eax, al
+    call parse_hex_byte
+    movzx edx, al
+    shl edx, 8
+    or eax, edx
+    call parse_hex_byte
+    movzx edx, al
+    shl edx, 16
+    or eax, edx
+    call parse_hex_byte
+    movzx edx, al
+    shl edx, 24
+    or eax, edx
+    ret
+
+write_single_reg32:
     lodsb
     cmp al, 'P'
     jne .bad
     mov dl, '='
     call parse_hex_u32
-    mov ebx, eax
-    call parse_hex_word_le
-    cmp ebx, 0
-    je .eax
-    cmp ebx, 1
-    je .ecx
-    cmp ebx, 2
-    je .edx
-    cmp ebx, 3
-    je .ebx
-    cmp ebx, 4
-    je .esp
-    cmp ebx, 5
-    je .ebp
-    cmp ebx, 6
-    je .esi
-    cmp ebx, 7
-    je .edi
-    cmp ebx, 8
-    je .eip
-    cmp ebx, 9
+    mov ecx, eax
+    call parse_hex_dword_le
+    cmp ecx, 0
+    jb .bad
+    cmp ecx, 8
+    jbe .shadow
+    cmp ecx, 9
     je .efl
     jmp send_ok
-.eax:
-    mov [esp+28], ax
-    jmp send_ok
-.ecx:
-    mov [esp+24], ax
-    jmp send_ok
-.edx:
-    mov [esp+20], ax
-    jmp send_ok
-.ebx:
-    mov [esp+16], ax
-    jmp send_ok
-.esp:
-    mov [esp+12], ax
-    jmp send_ok
-.ebp:
-    mov [esp+8], ax
-    jmp send_ok
-.esi:
-    mov [esp+4], ax
-    jmp send_ok
-.edi:
-    mov [esp+0], ax
-    jmp send_ok
-.eip:
-    mov [esp+36], ax
+.shadow:
+    lea edx, [reg_shadow + ecx*4]
+    mov [edx], eax
     jmp send_ok
 .efl:
-    mov [esp+32], ax
+    mov [reg_shadow+36], eax
+    jmp send_ok
+.bad:
+    jmp send_empty
+
+write_all_regs32:
+    lodsb
+    cmp al, 'G'
+    jne .bad
+    call parse_hex_dword_le
+    mov [reg_shadow+0], eax
+    call parse_hex_dword_le
+    mov [reg_shadow+4], eax
+    call parse_hex_dword_le
+    mov [reg_shadow+8], eax
+    call parse_hex_dword_le
+    mov [reg_shadow+12], eax
+    call parse_hex_dword_le
+    mov [reg_shadow+16], eax
+    call parse_hex_dword_le
+    mov [reg_shadow+20], eax
+    call parse_hex_dword_le
+    mov [reg_shadow+24], eax
+    call parse_hex_dword_le
+    mov [reg_shadow+28], eax
+    call parse_hex_dword_le
+    mov [reg_shadow+32], eax
     jmp send_ok
 .bad:
     jmp send_empty
@@ -311,10 +433,12 @@ handle_write_mem:
 gdb_debug_break:
     pushfd
     pushad
+    mov ebp, esp
+    call sync_frame_to_shadow
     call send_s05
 .loop:
-    call rsp_recv_packet
-    mov esi, rsp_buf
+    call rsp_recv_packet  ; 调用后，eax 指向栈上的缓冲区
+    mov esi, eax
     mov al, [esi]
     cmp al, 'c'
     je .cont
@@ -324,6 +448,10 @@ gdb_debug_break:
     je .sig
     cmp al, 'g'
     je .regs
+    cmp al, 'p'
+    je .regr
+    cmp al, 'G'
+    je .setrs
     cmp al, 'm'
     je .memr
     cmp al, 'M'
@@ -341,7 +469,13 @@ gdb_debug_break:
     call send_s05
     jmp .loop
 .regs:
-    call send_regs16
+    call send_regs32
+    jmp .loop
+.regr:
+    call send_single_reg32
+    jmp .loop
+.setrs:
+    call write_all_regs32
     jmp .loop
 .memr:
     call handle_read_mem
@@ -350,7 +484,7 @@ gdb_debug_break:
     call handle_write_mem
     jmp .loop
 .setr:
-    call write_single_reg16
+    call write_single_reg32
     jmp .loop
 .ok:
     call send_ok
@@ -359,18 +493,21 @@ gdb_debug_break:
     call send_empty
     jmp .loop
 .cont:
+    call sync_shadow_to_frame
     popad
     popfd
     ret
 
+; 使用局部变量替代全局变量
 section .bss
 rsp_buf resb 256
-section .data
-rsp_sum db 0
+rsp_checksum resb 1
+reg_shadow resd 10
 
 %else
 section .text
 greatstart:
-    jmp kernelBridge
+    ; 跳转到内核入口点
+    jmp 0x18:0xc0100000
     ud2
 %endif

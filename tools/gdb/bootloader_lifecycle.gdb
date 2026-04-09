@@ -7,13 +7,15 @@ target remote localhost:1234
 define reach_sector2
   echo Continuing to sector2...\n
   continue
-  symbol-file build/kernel/kernel.exe
+  echo Reconnecting to sector2 stub to refresh remote capabilities...\n
+  disconnect
+  target remote localhost:1234
   echo sector2 stop reached. Current PC and instructions:\n
   x/5i $pc
   info registers
 end
 
 document reach_sector2
-Continue from the boot-sector stub into sector2, then load kernel symbols
-and print the current PC, nearby instructions, and registers.
+Continue from boot.asm stub into sector2, then reconnect GDB so packet
+capabilities are re-negotiated against sector2 stub before further commands.
 end

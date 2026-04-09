@@ -29,6 +29,8 @@ add_custom_command(
             $<$<BOOL:${EARLY_BOOT_GDB}>:-dEARLY_BOOT_GDB>
             ${CMAKE_CURRENT_SOURCE_DIR}/sector2.asm
             -o ${BOOT_OUTPUT_DIR}/sector2.o
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/sector2.asm
+    VERBATIM
 )
 set(NULL_CPP_FILE_PATH "${CMAKE_BINARY_DIR}/_yros_cmake_hack/null.cpp")
 file(WRITE ${NULL_CPP_FILE_PATH} "")

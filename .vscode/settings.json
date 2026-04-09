@@ -19,5 +19,7 @@
         "__splash.h": "c"
     },
     "cmake.sourceDirectory": "/home/dmy/v6pp/unix-v6pp-tongji/programs",
-    "C_Cpp.errorSquiggles": "disabled"
+    "C_Cpp.errorSquiggles": "disabled",
+    "terminal.integrated.gpuAcceleration": "off",
+    "terminal.integrated.rendererType": "dom"
 }

@@ -1,28 +1,27 @@
 #include "FSDebugger.h"
 #include "../../include/Video.h"
 #include "../../include/Kernel.h"
+#include "../../include/ATADriver.h"
+#include "../../include/DeviceManager.h"
+#include "../../include/IOPort.h"
 
-// È«¾Ö±äÁ¿ÓÃÓÚ´æ´¢µ±Ç°Â·¾¶ºÍÎ»ÖÃ
-static const char* g_current_path = nullptr;
-static int g_path_index = 0;
-
-// ×Ô¶¨ÒåµÄÂ·¾¶×Ö·ûÌá¹©º¯Êý
-static char DebuggerNextChar() {
-    if (g_current_path == nullptr) {
-        return '\0';
+static int wait_for_ata_mask(unsigned char mask, unsigned char expected)
+{
+    for (int ticks = 0; ticks < 100000; ticks++) {
+        unsigned char status = IOPort::InByte(ATADriver::STATUS_PORT);
+        if ((status & mask) == expected) {
+            return 1;
+        }
     }
-    
-    char c = g_current_path[g_path_index];
-    if (c != '\0') {
-        g_path_index++;
-    }
-    return c;
+    return 0;
 }
 
 FSDebugger::FSDebugger()
     : m_FileSystem(nullptr)
     , m_FileManager(nullptr)
     , m_BufferManager(nullptr)
+    , m_OutputWriter(nullptr)
+    , m_OutputContext(nullptr)
 {
 }
 
@@ -37,20 +36,41 @@ void FSDebugger::Initialize(FileSystem* fs, FileManager* fm, BufferManager* bm)
     m_BufferManager = bm;
 }
 
-void FSDebugger::PrintHelp()
+void FSDebugger::SetOutputWriter(OutputWriter writer, void* context)
 {
-    Diagnose::Write("=== File System Debugger Help ===\n");
-    Diagnose::Write("help          - Show this help message\n");
-    Diagnose::Write("block <n>     - View disk block n\n");
-    Diagnose::Write("inode <n>     - View inode n\n");
-    Diagnose::Write("ls <path>     - List directory\n");
-    Diagnose::Write("super         - View superblock\n");
-    Diagnose::Write("inodes        - List all inodes\n");
-    Diagnose::Write("trace <path>  - Trace directory traversal\n");
-    Diagnose::Write("================================\n");
+    m_OutputWriter = writer;
+    m_OutputContext = context;
 }
 
-// ¸¨Öúº¯Êý£º½«ÕûÊý×ª»»Îª16½øÖÆ×Ö·û´®
+void FSDebugger::ResetOutputWriter()
+{
+    m_OutputWriter = nullptr;
+    m_OutputContext = nullptr;
+}
+
+void FSDebugger::Write(const char* text)
+{
+    if (m_OutputWriter) {
+        m_OutputWriter(text, m_OutputContext);
+        return;
+    }
+    Diagnose::Write(text);
+}
+
+void FSDebugger::PrintHelp()
+{
+    Write("=== File System Debugger Help ===\n");
+    Write("help          - Show this help message\n");
+    Write("block <n>     - View disk block n\n");
+    Write("inode <n>     - View inode n\n");
+    Write("ls <path>     - List directory\n");
+    Write("super         - View superblock\n");
+    Write("inodes        - List all inodes\n");
+    Write("trace <path>  - Trace directory traversal\n");
+    Write("================================\n");
+}
+
+// è¾…åŠ©å‡½æ•°ï¼šå°†æ•´æ•°è½¬æ¢ä¸º16è¿›åˆ¶å­—ç¬¦ä¸²
 static void int_to_hex(int value, char* buf, int len) {
     const char* hex_chars = "0123456789abcdef";
     int i = len - 1;
@@ -68,14 +88,14 @@ static void int_to_hex(int value, char* buf, int len) {
         }
     }
     
-    // Ç°µ¼¿Õ¸ñ
+    // å‰å¯¼ç©ºæ ¼
     while (i >= 0) {
         buf[i] = ' ';
         i--;
     }
 }
 
-// ¸¨Öúº¯Êý£º½«ÕûÊý×ª»»ÎªÊ®½øÖÆ×Ö·û´®
+// è¾…åŠ©å‡½æ•°ï¼šå°†æ•´æ•°è½¬æ¢ä¸ºåè¿›åˆ¶å­—ç¬¦ä¸²
 static void int_to_dec(int value, char* buf, int len) {
     int i = len - 1;
     buf[i] = '\0';
@@ -103,7 +123,7 @@ static void int_to_dec(int value, char* buf, int len) {
         }
     }
     
-    // Ç°µ¼¿Õ¸ñ
+    // å‰å¯¼ç©ºæ ¼
     while (i >= 0) {
         buf[i] = ' ';
         i--;
@@ -116,10 +136,10 @@ void FSDebugger::PrintHex(const unsigned char* data, int size)
     
     for (int i = 0; i < size; i++) {
         if (i % 16 == 0) {
-            Diagnose::Write("\n0x");
+            Write("\n0x");
             int_to_hex(i, buf, 32);
-            Diagnose::Write(buf + 24); // Ö»ÏÔÊ¾ºó8Î»
-            Diagnose::Write(": ");
+            Write(buf + 24); // åªæ˜¾ç¤ºåŽ8ä½
+            Write(": ");
         }
         
         const char* hex_chars = "0123456789abcdef";
@@ -127,10 +147,10 @@ void FSDebugger::PrintHex(const unsigned char* data, int size)
         hex_byte[0] = hex_chars[(data[i] >> 4) & 0x0F];
         hex_byte[1] = hex_chars[data[i] & 0x0F];
         hex_byte[2] = '\0';
-        Diagnose::Write(hex_byte);
-        Diagnose::Write(" ");
+        Write(hex_byte);
+        Write(" ");
     }
-    Diagnose::Write("\n");
+    Write("\n");
 }
 
 void FSDebugger::PrintAscii(const unsigned char* data, int size)
@@ -140,74 +160,190 @@ void FSDebugger::PrintAscii(const unsigned char* data, int size)
     
     for (int i = 0; i < size; i++) {
         if (i % 16 == 0) {
-            Diagnose::Write("\n0x");
+            Write("\n0x");
             char hex_buf[32];
             int_to_hex(i, hex_buf, 32);
-            Diagnose::Write(hex_buf + 24); // Ö»ÏÔÊ¾ºó8Î»
-            Diagnose::Write(": ");
+            Write(hex_buf + 24); // åªæ˜¾ç¤ºåŽ8ä½
+            Write(": ");
         }
         
         unsigned char c = data[i];
         buf[0] = (c >= 32 && c < 127) ? c : '.';
-        Diagnose::Write(buf);
+        Write(buf);
     }
-    Diagnose::Write("\n");
+    Write("\n");
 }
 
 void FSDebugger::ViewDiskBlock(int blockNo)
 {
-    if (!m_BufferManager) {
-        Diagnose::Write("Error: Buffer manager not initialized\n");
+    unsigned char block[Inode::BLOCK_SIZE];
+
+    if (!ReadRawSector(blockNo, block)) {
+        Write("Error: Could not read block\n");
         return;
     }
-    
-    Diagnose::Write("=== Viewing disk block ");
+
+    Write("=== Viewing disk block ");
     char buf[32];
     int_to_dec(blockNo, buf, 32);
-    Diagnose::Write(buf + 22);
-    Diagnose::Write(" ===\n");
-    
-    Buf* bp = m_BufferManager->Bread(1, blockNo);
-    
-    if (bp) {
-        Diagnose::Write("Hex dump:\n");
-        PrintHex((const unsigned char*)bp->b_addr, 512);
-        Diagnose::Write("\nASCII dump:\n");
-        PrintAscii((const unsigned char*)bp->b_addr, 512);
-        m_BufferManager->Brelse(bp);
-    } else {
-        Diagnose::Write("Error: Could not read block\n");
+    Write(buf + 22);
+    Write(" ===\n");
+
+    Write("Hex dump:\n");
+    PrintHex(block, Inode::BLOCK_SIZE);
+    Write("\nASCII dump:\n");
+    PrintAscii(block, Inode::BLOCK_SIZE);
+}
+
+bool FSDebugger::ReadRawSector(int sectorNo, unsigned char* buffer)
+{
+    if (sectorNo < 0 || buffer == nullptr) {
+        return false;
     }
+
+    if (!wait_for_ata_mask(ATADriver::HD_DEVICE_BUSY, 0)) {
+        return false;
+    }
+
+    IOPort::OutByte(ATADriver::CTRL_PORT, 0);
+    IOPort::OutByte(ATADriver::MODE_PORT,
+                     ATADriver::MODE_IDE |
+                     ATADriver::MODE_LBA28 |
+                     ((sectorNo >> 24) & 0x0F));
+    IOPort::OutByte(ATADriver::NSECTOR_PORT, 1);
+    IOPort::OutByte(ATADriver::BLKNO_PORT_1, sectorNo & 0xFF);
+    IOPort::OutByte(ATADriver::BLKNO_PORT_2, (sectorNo >> 8) & 0xFF);
+    IOPort::OutByte(ATADriver::BLKNO_PORT_3, (sectorNo >> 16) & 0xFF);
+    IOPort::OutByte(ATADriver::CMD_PORT, ATADriver::HD_READ);
+
+    for (int ticks = 0; ticks < 100000; ticks++) {
+        unsigned char status = IOPort::InByte(ATADriver::STATUS_PORT);
+        if (status & ATADriver::HD_ERROR) {
+            return false;
+        }
+        if ((status & ATADriver::HD_DEVICE_BUSY) == 0 &&
+            (status & ATADriver::HD_DEVICE_REQUEST) != 0) {
+            for (int i = 0; i < Inode::BLOCK_SIZE / 2; i++) {
+                unsigned short word = IOPort::InWord(ATADriver::DATA_PORT);
+                buffer[i * 2] = (unsigned char)(word & 0xFF);
+                buffer[i * 2 + 1] = (unsigned char)((word >> 8) & 0xFF);
+            }
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool FSDebugger::ReadRawBytes(int sectorNo, int sectorCount, unsigned char* buffer)
+{
+    if (sectorNo < 0 || sectorCount <= 0 || buffer == nullptr) {
+        return false;
+    }
+
+    for (int i = 0; i < sectorCount; i++) {
+        if (!ReadRawSector(sectorNo + i, buffer + i * Inode::BLOCK_SIZE)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool FSDebugger::ReadDiskInode(int inodeNo, DiskInode* out)
+{
+    if (inodeNo <= 0 || out == nullptr) {
+        return false;
+    }
+
+    unsigned char block[Inode::BLOCK_SIZE];
+    int blockNo = FileSystem::INODE_ZONE_START_SECTOR +
+                  inodeNo / FileSystem::INODE_NUMBER_PER_SECTOR;
+    int offset = (inodeNo % FileSystem::INODE_NUMBER_PER_SECTOR) * (int)sizeof(DiskInode);
+
+    if (!ReadRawSector(blockNo, block)) {
+        return false;
+    }
+
+    Utility::DWordCopy((int*)(block + offset), (int*)out, sizeof(DiskInode) / sizeof(int));
+    return true;
+}
+
+int FSDebugger::MapDiskInodeBlock(const DiskInode& inode, int lbn)
+{
+    if (lbn < 0 || lbn >= Inode::HUGE_FILE_BLOCK) {
+        return 0;
+    }
+
+    if (lbn < Inode::SMALL_FILE_BLOCK) {
+        return inode.d_addr[lbn];
+    }
+
+    unsigned char firstBlock[Inode::BLOCK_SIZE];
+    unsigned char secondBlock[Inode::BLOCK_SIZE];
+    int index = 0;
+
+    if (lbn < Inode::LARGE_FILE_BLOCK) {
+        index = (lbn - Inode::SMALL_FILE_BLOCK) / Inode::ADDRESS_PER_INDEX_BLOCK + 6;
+    } else {
+        index = (lbn - Inode::LARGE_FILE_BLOCK) /
+                (Inode::ADDRESS_PER_INDEX_BLOCK * Inode::ADDRESS_PER_INDEX_BLOCK) + 8;
+    }
+
+    int firstSector = inode.d_addr[index];
+    if (firstSector == 0 || !ReadRawSector(firstSector, firstBlock)) {
+        return 0;
+    }
+
+    int* firstTable = (int*)firstBlock;
+    if (index >= 8) {
+        int firstIndex = ((lbn - Inode::LARGE_FILE_BLOCK) / Inode::ADDRESS_PER_INDEX_BLOCK) %
+                         Inode::ADDRESS_PER_INDEX_BLOCK;
+        int secondSector = firstTable[firstIndex];
+        if (secondSector == 0 || !ReadRawSector(secondSector, secondBlock)) {
+            return 0;
+        }
+        firstTable = (int*)secondBlock;
+    }
+
+    int leafIndex = 0;
+    if (lbn < Inode::LARGE_FILE_BLOCK) {
+        leafIndex = (lbn - Inode::SMALL_FILE_BLOCK) % Inode::ADDRESS_PER_INDEX_BLOCK;
+    } else {
+        leafIndex = (lbn - Inode::LARGE_FILE_BLOCK) % Inode::ADDRESS_PER_INDEX_BLOCK;
+    }
+
+    return firstTable[leafIndex];
 }
 
 void FSDebugger::DecodeFileMode(unsigned int mode)
 {
-    Diagnose::Write("File mode: 0x");
+    Write("File mode: 0x");
     char buf[32];
     int_to_hex(mode, buf, 32);
-    Diagnose::Write(buf + 24);
-    Diagnose::Write(" (");
+    Write(buf + 24);
+    Write(" (");
     
     if (mode & Inode::IFDIR) {
-        Diagnose::Write("d");
+        Write("d");
     } else if (mode & Inode::IFCHR) {
-        Diagnose::Write("c");
+        Write("c");
     } else if (mode & Inode::IFBLK) {
-        Diagnose::Write("b");
+        Write("b");
     } else {
-        Diagnose::Write("-");
+        Write("-");
     }
     
-    Diagnose::Write((mode & Inode::IREAD) ? "r" : "-");
-    Diagnose::Write((mode & Inode::IWRITE) ? "w" : "-");
-    Diagnose::Write((mode & Inode::IEXEC) ? "x" : "-");
-    Diagnose::Write((mode & Inode::IRWXG) & Inode::IREAD ? "r" : "-");
-    Diagnose::Write((mode & Inode::IRWXG) & Inode::IWRITE ? "w" : "-");
-    Diagnose::Write((mode & Inode::IRWXG) & Inode::IEXEC ? "x" : "-");
-    Diagnose::Write((mode & Inode::IRWXO) & Inode::IREAD ? "r" : "-");
-    Diagnose::Write((mode & Inode::IRWXO) & Inode::IWRITE ? "w" : "-");
-    Diagnose::Write((mode & Inode::IRWXO) & Inode::IEXEC ? "x" : "-");
-    Diagnose::Write(")\n");
+    Write((mode & Inode::IREAD) ? "r" : "-");
+    Write((mode & Inode::IWRITE) ? "w" : "-");
+    Write((mode & Inode::IEXEC) ? "x" : "-");
+    Write((mode & Inode::IRWXG) & Inode::IREAD ? "r" : "-");
+    Write((mode & Inode::IRWXG) & Inode::IWRITE ? "w" : "-");
+    Write((mode & Inode::IRWXG) & Inode::IEXEC ? "x" : "-");
+    Write((mode & Inode::IRWXO) & Inode::IREAD ? "r" : "-");
+    Write((mode & Inode::IRWXO) & Inode::IWRITE ? "w" : "-");
+    Write((mode & Inode::IRWXO) & Inode::IEXEC ? "x" : "-");
+    Write(")\n");
 }
 
 void FSDebugger::PrintInodeInfo(DiskInode* dinode)
@@ -215,180 +351,207 @@ void FSDebugger::PrintInodeInfo(DiskInode* dinode)
     if (!dinode) return;
     
     DecodeFileMode(dinode->d_mode);
-    Diagnose::Write("Links: ");
+    Write("Links: ");
     char buf[32];
     int_to_dec(dinode->d_nlink, buf, 32);
-    Diagnose::Write(buf + 22);
-    Diagnose::Write("\n");
-    Diagnose::Write("UID: ");
+    Write(buf + 22);
+    Write("\n");
+    Write("UID: ");
     int_to_dec(dinode->d_uid, buf, 32);
-    Diagnose::Write(buf + 22);
-    Diagnose::Write(", GID: ");
+    Write(buf + 22);
+    Write(", GID: ");
     int_to_dec(dinode->d_gid, buf, 32);
-    Diagnose::Write(buf + 22);
-    Diagnose::Write("\n");
-    Diagnose::Write("Size: ");
+    Write(buf + 22);
+    Write("\n");
+    Write("Size: ");
     int_to_dec(dinode->d_size, buf, 32);
-    Diagnose::Write(buf + 22);
-    Diagnose::Write(" bytes\n");
-    Diagnose::Write("Direct blocks: [");
+    Write(buf + 22);
+    Write(" bytes\n");
+    Write("Direct blocks: [");
     for (int i = 0; i < 6; i++) {
         int_to_dec(dinode->d_addr[i], buf, 32);
-        Diagnose::Write(buf + 22);
-        if (i < 5) Diagnose::Write(", ");
+        Write(buf + 22);
+        if (i < 5) Write(", ");
     }
-    Diagnose::Write("]\n");
-    Diagnose::Write("Indirect blocks: [");
+    Write("]\n");
+    Write("Indirect blocks: [");
     for (int i = 6; i < 8; i++) {
         int_to_dec(dinode->d_addr[i], buf, 32);
-        Diagnose::Write(buf + 22);
-        if (i < 7) Diagnose::Write(", ");
+        Write(buf + 22);
+        if (i < 7) Write(", ");
     }
-    Diagnose::Write("]\n");
-    Diagnose::Write("Double indirect: ");
+    Write("]\n");
+    Write("Double indirect: ");
     int_to_dec(dinode->d_addr[8], buf, 32);
-    Diagnose::Write(buf + 22);
-    Diagnose::Write("\n");
-    Diagnose::Write("Triple indirect: ");
+    Write(buf + 22);
+    Write("\n");
+    Write("Triple indirect: ");
     int_to_dec(dinode->d_addr[9], buf, 32);
-    Diagnose::Write(buf + 22);
-    Diagnose::Write("\n");
+    Write(buf + 22);
+    Write("\n");
 }
 
 void FSDebugger::ViewInode(int inodeNo)
 {
-    if (!m_BufferManager) {
-        Diagnose::Write("Error: Buffer manager not initialized\n");
-        return;
-    }
-    
-    Diagnose::Write("=== Viewing inode ");
+    Write("=== Viewing inode ");
     char buf[32];
     int_to_dec(inodeNo, buf, 32);
-    Diagnose::Write(buf + 22);
-    Diagnose::Write(" ===\n");
-    
-    int blockNo = FileSystem::INODE_ZONE_START_SECTOR + (inodeNo - 1) / FileSystem::INODE_NUMBER_PER_SECTOR;
-    int offset = ((inodeNo - 1) % FileSystem::INODE_NUMBER_PER_SECTOR) * sizeof(DiskInode);
-    
-    Buf* bp = m_BufferManager->Bread(1, blockNo);
-    
-    if (bp) {
-        DiskInode* dinode = (DiskInode*)((char*)bp->b_addr + offset);
-        PrintInodeInfo(dinode);
-        m_BufferManager->Brelse(bp);
+    Write(buf + 22);
+    Write(" ===\n");
+
+    DiskInode dinode;
+    if (ReadDiskInode(inodeNo, &dinode)) {
+        PrintInodeInfo(&dinode);
     } else {
-        Diagnose::Write("Error: Could not read inode block\n");
+        Write("Error: Could not read inode block\n");
     }
 }
 
 void FSDebugger::ViewSuperBlock()
 {
-    if (!m_BufferManager) {
-        Diagnose::Write("Error: Buffer manager not initialized\n");
-        return;
-    }
-    
-    Diagnose::Write("=== Superblock Information ===\n");
-    
-    Buf* bp = m_BufferManager->Bread(1, FileSystem::SUPER_BLOCK_SECTOR_NUMBER);
-    
-    if (bp) {
-        SuperBlock* sb = (SuperBlock*)bp->b_addr;
+    Write("=== Superblock Information ===\n");
+
+    unsigned char sectors[sizeof(SuperBlock)];
+    if (ReadRawBytes(FileSystem::SUPER_BLOCK_SECTOR_NUMBER,
+                     sizeof(SuperBlock) / Inode::BLOCK_SIZE,
+                     sectors)) {
+        SuperBlock* sb = (SuperBlock*)sectors;
         char buf[32];
-        
-        Diagnose::Write("Inode zone size (blocks): ");
+
+        Write("Inode zone size (blocks): ");
         int_to_dec(sb->s_isize, buf, 32);
-        Diagnose::Write(buf + 22);
-        Diagnose::Write("\n");
-        Diagnose::Write("File system size (blocks): ");
+        Write(buf + 22);
+        Write("\n");
+        Write("File system size (blocks): ");
         int_to_dec(sb->s_fsize, buf, 32);
-        Diagnose::Write(buf + 22);
-        Diagnose::Write("\n");
-        Diagnose::Write("Free blocks available: ");
+        Write(buf + 22);
+        Write("\n");
+        Write("Free blocks available: ");
         int_to_dec(sb->s_nfree, buf, 32);
-        Diagnose::Write(buf + 22);
-        Diagnose::Write("\n");
-        Diagnose::Write("Free inodes available: ");
+        Write(buf + 22);
+        Write("\n");
+        Write("Free inodes available: ");
         int_to_dec(sb->s_ninode, buf, 32);
-        Diagnose::Write(buf + 22);
-        Diagnose::Write("\n");
-        Diagnose::Write("Modified: ");
+        Write(buf + 22);
+        Write("\n");
+        Write("Modified: ");
         int_to_dec(sb->s_fmod, buf, 32);
-        Diagnose::Write(buf + 22);
-        Diagnose::Write("\n");
-        Diagnose::Write("Read-only: ");
+        Write(buf + 22);
+        Write("\n");
+        Write("Read-only: ");
         int_to_dec(sb->s_ronly, buf, 32);
-        Diagnose::Write(buf + 22);
-        Diagnose::Write("\n");
-        Diagnose::Write("Last update time: ");
+        Write(buf + 22);
+        Write("\n");
+        Write("Last update time: ");
         int_to_dec(sb->s_time, buf, 32);
-        Diagnose::Write(buf + 22);
-        Diagnose::Write("\n");
-        
-        m_BufferManager->Brelse(bp);
+        Write(buf + 22);
+        Write("\n");
     } else {
-        Diagnose::Write("Error: Could not read superblock\n");
+        Write("Error: Could not read superblock\n");
     }
 }
 
 void FSDebugger::ListAllInodes()
 {
-    if (!m_BufferManager) {
-        Diagnose::Write("Error: Buffer manager not initialized\n");
-        return;
-    }
-    
-    Diagnose::Write("=== Listing All Inodes ===\n");
-    
+    Write("=== Listing All Inodes ===\n");
+
     int totalInodes = FileSystem::INODE_ZONE_SIZE * FileSystem::INODE_NUMBER_PER_SECTOR;
     char buf[32];
-    
+
     for (int inodeNo = 1; inodeNo <= totalInodes; inodeNo++) {
-        int blockNo = FileSystem::INODE_ZONE_START_SECTOR + (inodeNo - 1) / FileSystem::INODE_NUMBER_PER_SECTOR;
-        int offset = ((inodeNo - 1) % FileSystem::INODE_NUMBER_PER_SECTOR) * sizeof(DiskInode);
-        
-        Buf* bp = m_BufferManager->Bread(1, blockNo);
-        
-        if (bp) {
-            DiskInode* dinode = (DiskInode*)((char*)bp->b_addr + offset);
-            
-            if (dinode->d_mode & Inode::IALLOC) {
-                Diagnose::Write("Inode ");
-                int_to_dec(inodeNo, buf, 32);
-                Diagnose::Write(buf + 22);
-                Diagnose::Write(": ");
-                
-                if (dinode->d_mode & Inode::IFDIR) {
-                    Diagnose::Write("dir");
-                } else if (dinode->d_mode & Inode::IFCHR) {
-                    Diagnose::Write("chr");
-                } else if (dinode->d_mode & Inode::IFBLK) {
-                    Diagnose::Write("blk");
-                } else {
-                    Diagnose::Write("reg");
-                }
-                
-                Diagnose::Write(", size=");
-                int_to_dec(dinode->d_size, buf, 32);
-                Diagnose::Write(buf + 22);
-                Diagnose::Write("\n");
+        DiskInode dinode;
+        if (ReadDiskInode(inodeNo, &dinode) && (dinode.d_mode & Inode::IALLOC)) {
+            Write("Inode ");
+            int_to_dec(inodeNo, buf, 32);
+            Write(buf + 22);
+            Write(": ");
+
+            if (dinode.d_mode & Inode::IFDIR) {
+                Write("dir");
+            } else if (dinode.d_mode & Inode::IFCHR) {
+                Write("chr");
+            } else if (dinode.d_mode & Inode::IFBLK) {
+                Write("blk");
+            } else {
+                Write("reg");
             }
-            
-            m_BufferManager->Brelse(bp);
+
+            Write(", size=");
+            int_to_dec(dinode.d_size, buf, 32);
+            Write(buf + 22);
+            Write("\n");
         }
     }
 }
 
 void FSDebugger::PrintDirectoryEntry(const char* name, int inodeNo)
 {
-    Diagnose::Write("[");
+    Write("[");
     char buf[32];
     int_to_dec(inodeNo, buf, 32);
-    Diagnose::Write(buf + 22);
-    Diagnose::Write("] ");
-    Diagnose::Write(name);
-    Diagnose::Write("\n");
+    Write(buf + 22);
+    Write("] ");
+    Write(name);
+    Write("\n");
+}
+
+void FSDebugger::CopyDirectoryEntryName(const char* entryName, char* out)
+{
+    int end = DirectoryEntry::DIRSIZ;
+    while (end > 0 && entryName[end - 1] == '\0') {
+        end--;
+    }
+
+    for (int i = 0; i < end; i++) {
+        out[i] = entryName[i];
+    }
+    out[end] = '\0';
+}
+
+bool FSDebugger::DirectoryEntryNameEquals(const char* entryName, const char* component)
+{
+    for (int i = 0; i < DirectoryEntry::DIRSIZ; i++) {
+        char lhs = entryName[i];
+        char rhs = component[i];
+
+        if (rhs == '\0') {
+            while (i < DirectoryEntry::DIRSIZ) {
+                if (entryName[i] != '\0') {
+                    return false;
+                }
+                i++;
+            }
+            return true;
+        }
+
+        if (lhs != rhs) {
+            return false;
+        }
+    }
+
+    return component[DirectoryEntry::DIRSIZ] == '\0';
+}
+
+bool FSDebugger::ExtractPathComponent(const char*& path, char* component)
+{
+    while (*path == '/') {
+        path++;
+    }
+
+    if (*path == '\0') {
+        component[0] = '\0';
+        return false;
+    }
+
+    int len = 0;
+    while (*path != '\0' && *path != '/') {
+        if (len < DirectoryEntry::DIRSIZ) {
+            component[len++] = *path;
+        }
+        path++;
+    }
+    component[len] = '\0';
+    return true;
 }
 
 void FSDebugger::TraverseDirectory(Inode* dirInode)
@@ -396,7 +559,7 @@ void FSDebugger::TraverseDirectory(Inode* dirInode)
     if (!dirInode || !m_BufferManager) return;
     
     if (!(dirInode->i_mode & Inode::IFDIR)) {
-        Diagnose::Write("Not a directory\n");
+        Write("Not a directory\n");
         return;
     }
     
@@ -418,24 +581,29 @@ void FSDebugger::TraverseDirectory(Inode* dirInode)
         int toRead = (size - offset) < remaining ? (size - offset) : remaining;
         
         int entryOffset = 0;
+        const int dirEntrySize = sizeof(int) + DirectoryEntry::DIRSIZ;
         while (entryOffset < toRead) {
+            if (entryOffset + dirEntrySize > toRead) {
+                break;
+            }
+
             int inodeNo = *(int*)(dirData + entryOffset);
             entryOffset += sizeof(int);
             
             if (inodeNo == 0) {
-                entryOffset += 14;
+                entryOffset += DirectoryEntry::DIRSIZ;
                 continue;
             }
             
-            char name[15];
-            for (int i = 0; i < 14; i++) {
+            char name[DirectoryEntry::DIRSIZ + 1];
+            for (int i = 0; i < DirectoryEntry::DIRSIZ; i++) {
                 name[i] = dirData[entryOffset + i];
             }
-            name[14] = '\0';
+            name[DirectoryEntry::DIRSIZ] = '\0';
             
             PrintDirectoryEntry(name, inodeNo);
             
-            entryOffset += 14;
+            entryOffset += DirectoryEntry::DIRSIZ;
         }
         
         m_BufferManager->Brelse(bp);
@@ -443,71 +611,159 @@ void FSDebugger::TraverseDirectory(Inode* dirInode)
     }
 }
 
-void FSDebugger::ListDirectory(const char* path)
+void FSDebugger::TraverseDirectoryDisk(const DiskInode& dirInode)
 {
-    if (!m_FileManager) {
-        Diagnose::Write("Error: File manager not initialized\n");
+    if ((dirInode.d_mode & Inode::IFDIR) == 0) {
+        Write("Not a directory\n");
         return;
     }
-    
-    Diagnose::Write("=== Listing directory: ");
-    Diagnose::Write(path);
-    Diagnose::Write(" ===\n");
-    
-    // ÉèÖÃÈ«¾ÖÂ·¾¶±äÁ¿
-    g_current_path = path;
-    g_path_index = 0;
-    
-    Inode* dirInode = m_FileManager->NameI(DebuggerNextChar, FileManager::OPEN);
-    if (dirInode) {
-        TraverseDirectory(dirInode);
-        dirInode->i_flag &= ~Inode::ILOCK;
-        dirInode->Prele();
-    } else {
-        Diagnose::Write("Error: Directory not found\n");
+
+    const int entrySize = sizeof(DirectoryEntry);
+    const int totalEntries = dirInode.d_size / entrySize;
+    unsigned char block[Inode::BLOCK_SIZE];
+    char name[DirectoryEntry::DIRSIZ + 1];
+
+    for (int entryIndex = 0; entryIndex < totalEntries; entryIndex++) {
+        int offset = entryIndex * entrySize;
+        int lbn = offset / Inode::BLOCK_SIZE;
+        int blockOffset = offset % Inode::BLOCK_SIZE;
+        int sector = MapDiskInodeBlock(dirInode, lbn);
+        if (sector == 0 || !ReadRawSector(sector, block)) {
+            Write("Error: Could not read directory block\n");
+            return;
+        }
+
+        DirectoryEntry* entry = (DirectoryEntry*)(block + blockOffset);
+        if (entry->m_ino == 0) {
+            continue;
+        }
+
+        CopyDirectoryEntryName(entry->m_name, name);
+        PrintDirectoryEntry(name, entry->m_ino);
+    }
+}
+
+bool FSDebugger::LookupPath(const char* path, DirectoryLookupResult* result, bool trace)
+{
+    if (path == nullptr || result == nullptr) {
+        return false;
+    }
+
+    int currentInodeNo = FileSystem::ROOTINO;
+    DiskInode currentInode;
+    if (!ReadDiskInode(currentInodeNo, &currentInode)) {
+        return false;
+    }
+
+    if (trace) {
+        Write("Start from root inode ");
+        char buf[32];
+        int_to_dec(currentInodeNo, buf, 32);
+        Write(buf + 22);
+        Write("\n");
+    }
+
+    const char* cursor = path;
+    char component[DirectoryEntry::DIRSIZ + 1];
+    while (ExtractPathComponent(cursor, component)) {
+        if ((currentInode.d_mode & Inode::IFDIR) == 0) {
+            Write("Error: Encountered non-directory during traversal\n");
+            return false;
+        }
+
+        const int entrySize = sizeof(DirectoryEntry);
+        const int totalEntries = currentInode.d_size / entrySize;
+        bool found = false;
+
+        for (int entryIndex = 0; entryIndex < totalEntries && !found; entryIndex++) {
+            int offset = entryIndex * entrySize;
+            int lbn = offset / Inode::BLOCK_SIZE;
+            int blockOffset = offset % Inode::BLOCK_SIZE;
+            int sector = MapDiskInodeBlock(currentInode, lbn);
+            unsigned char block[Inode::BLOCK_SIZE];
+            if (sector == 0 || !ReadRawSector(sector, block)) {
+                return false;
+            }
+
+            DirectoryEntry* entry = (DirectoryEntry*)(block + blockOffset);
+            if (entry->m_ino == 0 || !DirectoryEntryNameEquals(entry->m_name, component)) {
+                continue;
+            }
+
+            currentInodeNo = entry->m_ino;
+            if (!ReadDiskInode(currentInodeNo, &currentInode)) {
+                return false;
+            }
+
+            if (trace) {
+                Write("  -> ");
+                Write(component);
+                Write(" (inode ");
+                char buf[32];
+                int_to_dec(currentInodeNo, buf, 32);
+                Write(buf + 22);
+                Write(")\n");
+            }
+            found = true;
+        }
+
+        if (!found) {
+            if (trace) {
+                Write("  !! missing component: ");
+                Write(component);
+                Write("\n");
+            }
+            return false;
+        }
+    }
+
+    result->inodeNo = currentInodeNo;
+    result->inode = currentInode;
+    return true;
+}
+
+void FSDebugger::ListDirectory(const char* path)
+{
+    if (!path || path[0] == '\0') {
+        path = "/";
     }
     
-    // ÇåÀí
-    g_current_path = nullptr;
-    g_path_index = 0;
+    Write("=== Listing directory: ");
+    Write(path);
+    Write(" ===\n");
+
+    DirectoryLookupResult result;
+    if (LookupPath(path, &result, false)) {
+        TraverseDirectoryDisk(result.inode);
+    } else {
+        Write("Error: Directory not found\n");
+    }
 }
 
 void FSDebugger::TraceDirectory(const char* path)
 {
-    if (!m_FileManager) {
-        Diagnose::Write("Error: File manager not initialized\n");
-        return;
+    if (!path || path[0] == '\0') {
+        path = "/";
     }
     
-    Diagnose::Write("=== Tracing path: ");
-    Diagnose::Write(path);
-    Diagnose::Write(" ===\n");
-    
-    // ÉèÖÃÈ«¾ÖÂ·¾¶±äÁ¿
-    g_current_path = path;
-    g_path_index = 0;
-    
-    Inode* inode = m_FileManager->NameI(DebuggerNextChar, FileManager::OPEN);
-    if (inode) {
-        Diagnose::Write("Path resolved successfully!\n");
-        Diagnose::Write("Inode number: ");
+    Write("=== Tracing path: ");
+    Write(path);
+    Write(" ===\n");
+
+    DirectoryLookupResult result;
+    if (LookupPath(path, &result, true)) {
+        Write("Path resolved successfully!\n");
+        Write("Inode number: ");
         char buf[32];
-        int_to_dec(inode->i_number, buf, 32);
-        Diagnose::Write(buf + 22);
-        Diagnose::Write("\n");
-        Diagnose::Write("Size: ");
-        int_to_dec(inode->i_size, buf, 32);
-        Diagnose::Write(buf + 22);
-        Diagnose::Write(" bytes\n");
-        DecodeFileMode(inode->i_mode);
-        
-        inode->i_flag &= ~Inode::ILOCK;
-        inode->Prele();
+        int_to_dec(result.inodeNo, buf, 32);
+        Write(buf + 22);
+        Write("\n");
+        Write("Size: ");
+        int_to_dec(result.inode.d_size, buf, 32);
+        Write(buf + 22);
+        Write(" bytes\n");
+        DecodeFileMode(result.inode.d_mode);
     } else {
-        Diagnose::Write("Error: Path not found\n");
+        Write("Error: Path not found\n");
     }
-    
-    // ÇåÀí
-    g_current_path = nullptr;
-    g_path_index = 0;
 }

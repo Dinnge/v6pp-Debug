@@ -4,11 +4,14 @@
 #include "../../include/FileSystem.h"
 #include "../../include/FileManager.h"
 #include "../../include/BufferManager.h"
+#include "FSDebugger.h"
 
-// 初始化文件系统调试器
+// 鍒濆鍖栨枃浠剁郴缁熻皟璇曞櫒
 void fs_debugger_init(FileSystem* fs, FileManager* fm, BufferManager* bm);
 
-// 处理文件系统调试查询命令
-void fs_debugger_handle_query(const char* query);
+// 澶勭悊鏂囦欢绯荤粺璋冭瘯鏌ヨ鍛戒护
+void fs_debugger_handle_query(const char* query,
+                             FSDebugger::OutputWriter writer = nullptr,
+                             void* context = nullptr);
 
 #endif

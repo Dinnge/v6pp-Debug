@@ -4,18 +4,18 @@
 #include "gdb_socket.h"
 #include "../debug.h"
 
-// GDB 协议函数
+// GDB 鍗忚鍑芥暟
 int gdb_recv_packet(char* buffer, int buffer_size);
 void gdb_send_packet(char* data);
 void gdb_send_ok(void);
 void gdb_send_error(int code);
 GDBCommand gdb_parse_command(char* packet);
 
-// Socket 管理
+// Socket 绠＄悊
 void gdb_set_client_socket(Socket sock);
 Socket gdb_get_client_socket(void);
 
-// 命令处理函数
+// 鍛戒护澶勭悊鍑芥暟
 void gdb_handle_continue(char* packet);
 void gdb_handle_step(char* packet);
 void gdb_handle_read_registers(char* packet);

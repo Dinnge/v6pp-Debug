@@ -1,18 +1,18 @@
-// GDB ´®¿ÚÍ¨ĞÅ²ãÊµÏÖ
-// ÊµÏÖ 8250 UART ´®¿ÚÇı¶¯£¬ÓÃÓÚ GDB Ô¶³Ìµ÷ÊÔĞ­Òé
+// GDB ä¸²å£é€šä¿¡å±‚å®ç°
+// å®ç° 8250 UART ä¸²å£é©±åŠ¨ï¼Œç”¨äº GDB è¿œç¨‹è°ƒè¯•åè®®
 
 #include "gdb_serial.h"
 #include "../../include/Video.h"
 #include "../../include/Chip8259A.h"
 
-// ³õÊ¼»¯±êÖ¾
+// åˆå§‹åŒ–æ ‡å¿—
 static int g_serial_initialized = 0;
 
-// ¶Ë¿Ú I/O ²Ù×÷£¨ĞèÒª¸ù¾İ V6++ µÄ I/O ½Ó¿Úµ÷Õû£©
+// ç«¯å£ I/O æ“ä½œï¼ˆéœ€è¦æ ¹æ® V6++ çš„ I/O æ¥å£è°ƒæ•´ï¼‰
 static inline void outb(unsigned short port, unsigned char data) {
-    // V6++ µÄ¶Ë¿ÚÊä³öº¯Êı
-    // ×¢Òâ£ºĞèÒª¸ù¾İ V6++ Êµ¼ÊµÄ I/O ½Ó¿Úµ÷ÓÃ
-    // ÕâÀïÊ¹ÓÃÄÚÁª»ã±à»ò V6++ Ìá¹©µÄ½Ó¿Ú
+    // V6++ çš„ç«¯å£è¾“å‡ºå‡½æ•°
+    // æ³¨æ„ï¼šéœ€è¦æ ¹æ® V6++ å®é™…çš„ I/O æ¥å£è°ƒç”¨
+    // è¿™é‡Œä½¿ç”¨å†…è”æ±‡ç¼–æˆ– V6++ æä¾›çš„æ¥å£
     __asm__ volatile ("outb %0, %1" : : "a"(data), "d"(port));
 }
 
@@ -22,7 +22,7 @@ static inline unsigned char inb(unsigned short port) {
     return data;
 }
 
-// ´®¿Ú³õÊ¼»¯
+// ä¸²å£åˆå§‹åŒ–
 int serial_init(void) {
     if (g_serial_initialized) {
         return 0;
@@ -30,28 +30,28 @@ int serial_init(void) {
 
     unsigned short base = SERIAL_COM1_BASE;
 
-    // ½ûÓÃÖĞ¶Ï
+    // ç¦ç”¨ä¸­æ–­
     outb(SERIAL_MODEM_CMD_PORT(base), 0x00);
 
-    // ÆôÓÃ DLAB£¨ÉèÖÃ²¨ÌØÂÊ³ıÊı£©
+    // å¯ç”¨ DLABï¼ˆè®¾ç½®æ³¢ç‰¹ç‡é™¤æ•°ï¼‰
     outb(SERIAL_LINE_CMD_PORT(base), 0x80);
 
-    // ÉèÖÃ²¨ÌØÂÊ£¨³ıÊıµÍ×Ö½ÚºÍ¸ß×Ö½Ú£©
+    // è®¾ç½®æ³¢ç‰¹ç‡ï¼ˆé™¤æ•°ä½å­—èŠ‚å’Œé«˜å­—èŠ‚ï¼‰
     outb(SERIAL_DATA_PORT(base), SERIAL_BAUD_DIVISOR & 0xFF);
     outb(SERIAL_DATA_PORT(base) + 1, (SERIAL_BAUD_DIVISOR >> 8) & 0xFF);
 
-    // ÅäÖÃ´®¿Ú£º8Î»Êı¾İ£¬ÎŞĞ£ÑéÎ»£¬1¸öÍ£Ö¹Î» (8N1)
-    // DLAB = 0, 8Î»Êı¾İ£¬ÎŞĞ£Ñé£¬1Í£Ö¹Î»
+    // é…ç½®ä¸²å£ï¼š8ä½æ•°æ®ï¼Œæ— æ ¡éªŒä½ï¼Œ1ä¸ªåœæ­¢ä½ (8N1)
+    // DLAB = 0, 8ä½æ•°æ®ï¼Œæ— æ ¡éªŒï¼Œ1åœæ­¢ä½
     outb(SERIAL_LINE_CMD_PORT(base), 0x03);
 
-    // ÆôÓÃ½ÓÊÕÖĞ¶Ï£¨IER: Received Data Available Interrupt Enable£©
+    // å¯ç”¨æ¥æ”¶ä¸­æ–­ï¼ˆIER: Received Data Available Interrupt Enableï¼‰
     outb(base + 1, 0x00);
     outb(base + 4, 0x0B);
     
-    // ÆôÓÃ FIFO£¬Çå¿Õ FIFO£¬ÉèÖÃ 14 ×Ö½ÚãĞÖµ
+    // å¯ç”¨ FIFOï¼Œæ¸…ç©º FIFOï¼Œè®¾ç½® 14 å­—èŠ‚é˜ˆå€¼
     outb(SERIAL_FIFO_CMD_PORT(base), 0xC7);
 
-    // ÆôÓÃ RTS ºÍ DSR
+    // å¯ç”¨ RTS å’Œ DSR
     outb(SERIAL_MODEM_CMD_PORT(base), 0x0B);
 
     g_serial_initialized = 1;
@@ -62,7 +62,7 @@ int serial_init(void) {
     return 0;
 }
 
-// ·¢ËÍÒ»¸ö×Ö½Ú
+// å‘é€ä¸€ä¸ªå­—èŠ‚
 void serial_set_rx_interrupt_enabled(int enabled) {
     unsigned short base = SERIAL_COM1_BASE;
     outb(base + 1, enabled ? 0x01 : 0x00);
@@ -76,76 +76,53 @@ void serial_set_rx_interrupt_enabled(int enabled) {
 void serial_outb(unsigned char data) {
     unsigned short base = SERIAL_COM1_BASE;
 
-    // µÈ´ı·¢ËÍ»º³åÇøÎª¿Õ
+    // ç­‰å¾…å‘é€ç¼“å†²åŒºä¸ºç©º
     while ((inb(SERIAL_LINE_STATUS_PORT(base)) & 0x20) == 0) {
-        // µÈ´ı
+        // ç­‰å¾…
     }
 
-    // ·¢ËÍÊı¾İ
+    // å‘é€æ•°æ®
     outb(SERIAL_DATA_PORT(base), data);
 }
 
-// ½ÓÊÕÒ»¸ö×Ö½Ú£¨×èÈû£©
+// æ¥æ”¶ä¸€ä¸ªå­—èŠ‚ï¼ˆé˜»å¡ï¼‰
 unsigned char serial_inb(void) {
     unsigned short base = SERIAL_COM1_BASE;
 
-    // µÈ´ıÊı¾İµ½´ï
+    // ç­‰å¾…æ•°æ®åˆ°è¾¾
     while ((inb(SERIAL_LINE_STATUS_PORT(base)) & 0x01) == 0) {
-        // µÈ´ı
+        // ç­‰å¾…
     }
 
-    // ¶ÁÈ¡Êı¾İ
+    // è¯»å–æ•°æ®
     return inb(SERIAL_DATA_PORT(base));
 }
 
-// ½ÓÊÕÒ»¸ö×Ö½Ú£¨·Ç×èÈû£©
+// æ¥æ”¶ä¸€ä¸ªå­—èŠ‚ï¼ˆéé˜»å¡ï¼‰
 int serial_inb_nb(void) {
     unsigned short base = SERIAL_COM1_BASE;
 
-    // ¼ì²éÊÇ·ñÓĞÊı¾İ
+    // æ£€æŸ¥æ˜¯å¦æœ‰æ•°æ®
     if ((inb(SERIAL_LINE_STATUS_PORT(base)) & 0x01) == 0) {
-        return -1;  // ÎŞÊı¾İ
+        return -1;  // æ— æ•°æ®
     }
 
-    // ¶ÁÈ¡Êı¾İ
+    // è¯»å–æ•°æ®
     return (int)inb(SERIAL_DATA_PORT(base));
 }
 
-// ·¢ËÍÊı¾İ
+// å‘é€æ•°æ®
 int serial_write(const char* data, int len) {
-    // int sent = 0;
-
-    // for (int i = 0; i < len; i++) {
-    //     serial_outb((unsigned char)data[i]);
-    //     sent++;
-    // }
-
-    // return sent;
     int sent = 0;
-    unsigned short base = SERIAL_COM1_BASE;
-    
-    // ¼ì²é·¢ËÍ»º³åÇøÊÇ·ñ¾ÍĞ÷
-    if ((inb(SERIAL_LINE_STATUS_PORT(base)) & 0x20) == 0) {
-        return 0;  // »º³åÇøÂú£¬ÉÔºóÖØÊÔ
-    }
-    
-    // ÅúÁ¿·¢ËÍÊı¾İ
     for (int i = 0; i < len; i++) {
-        outb(SERIAL_DATA_PORT(base), data[i]);
+        serial_outb((unsigned char)data[i]);
         sent++;
-        
-        // Ã¿·¢ËÍ16×Ö½Ú¼ì²éÒ»´Î»º³åÇø
-        if (i % 16 == 15) {
-            if ((inb(SERIAL_LINE_STATUS_PORT(base)) & 0x20) == 0) {
-                break;  // »º³åÇøÂú£¬Í£Ö¹·¢ËÍ
-            }
-        }
     }
-    
+
     return sent;
 }
 
-// ½ÓÊÕÊı¾İ£¨·Ç×èÈû£©
+// æ¥æ”¶æ•°æ®ï¼ˆéé˜»å¡ï¼‰
 int serial_read(char* buffer, int max_len) {
     int received = 0;
 
@@ -153,7 +130,7 @@ int serial_read(char* buffer, int max_len) {
         int ch = serial_inb_nb();
 
         if (ch < 0) {
-            break;  // Ã»ÓĞ¸ü¶àÊı¾İ
+            break;  // æ²¡æœ‰æ›´å¤šæ•°æ®
         }
 
         buffer[received++] = (char)ch;
@@ -162,29 +139,29 @@ int serial_read(char* buffer, int max_len) {
     return received;
 }
 
-// ¼ì²éÊÇ·ñÓĞÊı¾İ¿É¶Á
+// æ£€æŸ¥æ˜¯å¦æœ‰æ•°æ®å¯è¯»
 int serial_readable(void) {
     unsigned short base = SERIAL_COM1_BASE;
     return (inb(SERIAL_LINE_STATUS_PORT(base)) & 0x01) ? 1 : 0;
 }
 
-// ·¢ËÍÊı¾İ°ü£¨´øĞ£ÑéºÍ£©
+// å‘é€æ•°æ®åŒ…ï¼ˆå¸¦æ ¡éªŒå’Œï¼‰
 int serial_send_packet(const char* data, int len) {
     unsigned char checksum = 0;
 
-    // ·¢ËÍÆğÊ¼·û '$'
+    // å‘é€èµ·å§‹ç¬¦ '$'
     serial_outb('$');
 
-    // ·¢ËÍÊı¾İ²¢¼ÆËãĞ£ÑéºÍ
+    // å‘é€æ•°æ®å¹¶è®¡ç®—æ ¡éªŒå’Œ
     for (int i = 0; i < len; i++) {
         serial_outb((unsigned char)data[i]);
         checksum += (unsigned char)data[i];
     }
 
-    // ·¢ËÍ½áÊø·û '#'
+    // å‘é€ç»“æŸç¬¦ '#'
     serial_outb('#');
 
-    // ·¢ËÍĞ£ÑéºÍ£¨Ê®Áù½øÖÆ£©
+    // å‘é€æ ¡éªŒå’Œï¼ˆåå…­è¿›åˆ¶ï¼‰
     const char* hex = "0123456789abcdef";
     serial_outb((unsigned char)hex[(checksum >> 4) & 0x0F]);
     serial_outb((unsigned char)hex[checksum & 0x0F]);
@@ -192,9 +169,9 @@ int serial_send_packet(const char* data, int len) {
     return len;
 }
 
-// ½ÓÊÕÊı¾İ°ü£¨´øĞ£ÑéºÍ£©
+// æ¥æ”¶æ•°æ®åŒ…ï¼ˆå¸¦æ ¡éªŒå’Œï¼‰
 // int serial_recv_packet(char* buffer, int max_len) {
-//     int state = 0;  // 0: µÈ´ı '$', 1: ½ÓÊÕÊı¾İ, 2: µÈ´ı '#', 3: ½ÓÊÕĞ£ÑéºÍ
+//     int state = 0;  // 0: ç­‰å¾… '$', 1: æ¥æ”¶æ•°æ®, 2: ç­‰å¾… '#', 3: æ¥æ”¶æ ¡éªŒå’Œ
 //     int len = 0;
 //     unsigned char checksum_calc = 0;
 //     unsigned char checksum_recv = 0;
@@ -204,25 +181,25 @@ int serial_send_packet(const char* data, int len) {
 //         int ch = serial_inb_nb();
 
 //         if (ch < 0) {
-//             return 0;  // ÔİÎŞÊı¾İ
+//             return 0;  // æš‚æ— æ•°æ®
 //         }
 
 //         unsigned char c = (unsigned char)ch;
 
 //         switch (state) {
-//             case 0:  // µÈ´ı '$'
+//             case 0:  // ç­‰å¾… '$'
 //                 if (c == '$') {
 //                     state = 1;
 //                     len = 0;
 //                     checksum_calc = 0;
 //                 } else if (c == '+') {
-//                     // ACK£¬ºöÂÔ
+//                     // ACKï¼Œå¿½ç•¥
 //                 } else if (c == '-') {
-//                     // NACK£¬ºöÂÔ
+//                     // NACKï¼Œå¿½ç•¥
 //                 }
 //                 break;
 
-//             case 1:  // ½ÓÊÕÊı¾İ
+//             case 1:  // æ¥æ”¶æ•°æ®
 //                 if (c == '#') {
 //                     state = 2;
 //                     checksum_digits = 0;
@@ -233,7 +210,7 @@ int serial_send_packet(const char* data, int len) {
 //                 }
 //                 break;
 
-//             case 2:  // ½ÓÊÕĞ£ÑéºÍ
+//             case 2:  // æ¥æ”¶æ ¡éªŒå’Œ
 //                 checksum_recv <<= 4;
 //                 if (c >= '0' && c <= '9') {
 //                     checksum_recv |= (c - '0');
@@ -246,15 +223,15 @@ int serial_send_packet(const char* data, int len) {
 //                 checksum_digits++;
 
 //                 if (checksum_digits == 2) {
-//                     // Ğ£ÑéºÍ½ÓÊÕÍê±Ï
+//                     // æ ¡éªŒå’Œæ¥æ”¶å®Œæ¯•
 //                     if (checksum_recv == checksum_calc) {
-//                         // Ğ£ÑéºÍÕıÈ·
+//                         // æ ¡éªŒå’Œæ­£ç¡®
 //                         buffer[len] = '\0';
-//                         serial_send_ack();  // ·¢ËÍ ACK
+//                         serial_send_ack();  // å‘é€ ACK
 //                         return len;
 //                     } else {
-//                         // Ğ£ÑéºÍ´íÎó
-//                         serial_send_nack();  // ·¢ËÍ NACK
+//                         // æ ¡éªŒå’Œé”™è¯¯
+//                         serial_send_nack();  // å‘é€ NACK
 //                         state = 0;
 //                         return -1;
 //                     }
@@ -264,83 +241,83 @@ int serial_send_packet(const char* data, int len) {
 //     }
 // }
 int serial_recv_packet(char* buffer, int max_len) {
-    int state = 0;  // 0: µÈ´ı '$', 1: ½ÓÊÕÊı¾İ, 2: µÈ´ı '#', 3: ½ÓÊÕĞ£ÑéºÍ
+    int state = 0;  // 0: ç­‰å¾… '$', 1: æ¥æ”¶æ•°æ®, 2: ç­‰å¾… '#', 3: æ¥æ”¶æ ¡éªŒå’Œ
     int len = 0;
     unsigned char checksum_calc = 0;
     unsigned char checksum_recv = 0;
     int checksum_digits = 0;
     
-    // Ìí¼Ó³¬Ê±»úÖÆ£¬±ÜÃâÎŞÏŞµÈ´ı
+    // æ·»åŠ è¶…æ—¶æœºåˆ¶ï¼Œé¿å…æ— é™ç­‰å¾…
     uint32_t timeout_counter = 0;
-    const uint32_t TIMEOUT_LIMIT = 1000000;  // ³¬Ê±ÏŞÖÆ
+    const uint32_t TIMEOUT_LIMIT = 1000000;  // è¶…æ—¶é™åˆ¶
 
     while (1) {
         int ch = serial_inb_nb();
 
         if (ch < 0) {
-            // ÎŞÊı¾İ¿ÉÓÃ£¬¼ì²é³¬Ê±
+            // æ— æ•°æ®å¯ç”¨ï¼Œæ£€æŸ¥è¶…æ—¶
             timeout_counter++;
             if (timeout_counter > TIMEOUT_LIMIT) {
-                // Diagnose::Write("[SERIAL] ½ÓÊÕ³¬Ê±\n");
+                // Diagnose::Write("[SERIAL] æ¥æ”¶è¶…æ—¶\n");
                 return 0;
             }
             
-            // ¶ÌÔİÑÓ³Ù£¬±ÜÃâÃ¦µÈ´ı
+            // çŸ­æš‚å»¶è¿Ÿï¼Œé¿å…å¿™ç­‰å¾…
             for (volatile int i = 0; i < 100; i++);
             continue;
         }
 
-        // ÖØÖÃ³¬Ê±¼ÆÊıÆ÷
+        // é‡ç½®è¶…æ—¶è®¡æ•°å™¨
         timeout_counter = 0;
         
         unsigned char c = (unsigned char)ch;
 
-        // ¹Ø¼üĞŞ¸Ä£º¼ì²éÊÇ·ñÊÇÖĞ¶Ï×Ö·û (Ctrl+C = 0x03)
+        // å…³é”®ä¿®æ”¹ï¼šæ£€æŸ¥æ˜¯å¦æ˜¯ä¸­æ–­å­—ç¬¦ (Ctrl+C = 0x03)
         if (c == 0x03) {
-            // Diagnose::Write("[INTERRUPT] ÊÕµ½Ctrl+CÖĞ¶ÏÇëÇó\n");
-            buffer[0] = 0x03;  // ·µ»ØÖĞ¶Ï×Ö·û
+            // Diagnose::Write("[INTERRUPT] æ”¶åˆ°Ctrl+Cä¸­æ–­è¯·æ±‚\n");
+            buffer[0] = 0x03;  // è¿”å›ä¸­æ–­å­—ç¬¦
             buffer[1] = '\0';
-            return 1;  // ·µ»ØÖĞ¶Ï°ü³¤¶È
+            return 1;  // è¿”å›ä¸­æ–­åŒ…é•¿åº¦
         }
 
         switch (state) {
-            case 0:  // µÈ´ı '$'
+            case 0:  // ç­‰å¾… '$'
                 if (c == '$') {
                     state = 1;
                     len = 0;
                     checksum_calc = 0;
-                    // Diagnose::Write("[SERIAL] ¿ªÊ¼½ÓÊÕGDB°ü\n");
+                    // Diagnose::Write("[SERIAL] å¼€å§‹æ¥æ”¶GDBåŒ…\n");
                 } else if (c == '+') {
-                    // ACK£¬ºöÂÔ
-                    // Diagnose::Write("[SERIAL] ÊÕµ½ACK\n");
+                    // ACKï¼Œå¿½ç•¥
+                    // Diagnose::Write("[SERIAL] æ”¶åˆ°ACK\n");
                 } else if (c == '-') {
-                    // NACK£¬ºöÂÔ
-                    // Diagnose::Write("[SERIAL] ÊÕµ½NACK\n");
+                    // NACKï¼Œå¿½ç•¥
+                    // Diagnose::Write("[SERIAL] æ”¶åˆ°NACK\n");
                 } else if (c == 0x03) {
-                    // ÔÚ·Ç¼àÌı×´Ì¬ÏÂÊÕµ½Ctrl+C£¬¼ÇÂ¼ÈÕÖ¾
-                    // Diagnose::Write("[SERIAL] ÊÕµ½Ctrl+Cµ«Î´ÆôÓÃÖĞ¶Ï¼àÌı\n");
+                    // åœ¨éç›‘å¬çŠ¶æ€ä¸‹æ”¶åˆ°Ctrl+Cï¼Œè®°å½•æ—¥å¿—
+                    // Diagnose::Write("[SERIAL] æ”¶åˆ°Ctrl+Cä½†æœªå¯ç”¨ä¸­æ–­ç›‘å¬\n");
                 }
                 break;
 
-            case 1:  // ½ÓÊÕÊı¾İ
+            case 1:  // æ¥æ”¶æ•°æ®
                 if (c == '#') {
                     state = 2;
                     checksum_digits = 0;
                     checksum_recv = 0;
-                    // Diagnose::Write("[SERIAL] Êı¾İ½ÓÊÕÍê³É£¬µÈ´ıĞ£ÑéºÍ\n");
+                    // Diagnose::Write("[SERIAL] æ•°æ®æ¥æ”¶å®Œæˆï¼Œç­‰å¾…æ ¡éªŒå’Œ\n");
                 } else if (len < max_len - 1) {
                     buffer[len++] = c;
                     checksum_calc += c;
                 } else {
-                    // »º³åÇøÒç³ö
-                    // Diagnose::Write("[SERIAL] »º³åÇøÒç³ö£¬°ü¹ı³¤\n");
+                    // ç¼“å†²åŒºæº¢å‡º
+                    // Diagnose::Write("[SERIAL] ç¼“å†²åŒºæº¢å‡ºï¼ŒåŒ…è¿‡é•¿\n");
                     serial_send_nack();
                     state = 0;
                     return -1;
                 }
                 break;
 
-            case 2:  // ½ÓÊÕĞ£ÑéºÍ
+            case 2:  // æ¥æ”¶æ ¡éªŒå’Œ
                 checksum_recv <<= 4;
                 if (c >= '0' && c <= '9') {
                     checksum_recv |= (c - '0');
@@ -349,8 +326,8 @@ int serial_recv_packet(char* buffer, int max_len) {
                 } else if (c >= 'A' && c <= 'F') {
                     checksum_recv |= (c - 'A' + 10);
                 } else {
-                    // ÎŞĞ§µÄĞ£ÑéºÍ×Ö·û
-                    // Diagnose::Write("[SERIAL] ÎŞĞ§Ğ£ÑéºÍ×Ö·û: 0x%02x\n", c);
+                    // æ— æ•ˆçš„æ ¡éªŒå’Œå­—ç¬¦
+                    // Diagnose::Write("[SERIAL] æ— æ•ˆæ ¡éªŒå’Œå­—ç¬¦: 0x%02x\n", c);
                     serial_send_nack();
                     state = 0;
                     return -1;
@@ -359,16 +336,16 @@ int serial_recv_packet(char* buffer, int max_len) {
                 checksum_digits++;
 
                 if (checksum_digits == 2) {
-                    // Ğ£ÑéºÍ½ÓÊÕÍê±Ï
+                    // æ ¡éªŒå’Œæ¥æ”¶å®Œæ¯•
                     if (checksum_recv == checksum_calc) {
-                        // Ğ£ÑéºÍÕıÈ·
+                        // æ ¡éªŒå’Œæ­£ç¡®
                         buffer[len] = '\0';
                         serial_send_ack();
-                        // Diagnose::Write("[SERIAL] °ü½ÓÊÕ³É¹¦: %s\n", buffer);
+                        // Diagnose::Write("[SERIAL] åŒ…æ¥æ”¶æˆåŠŸ: %s\n", buffer);
                         return len;
                     } else {
-                        // Ğ£ÑéºÍ´íÎó
-                        Diagnose::Write("[SERIAL] Ğ£ÑéºÍ´íÎó: ¼ÆËã=0x%02x, ½ÓÊÕ=0x%02x\n", 
+                        // æ ¡éªŒå’Œé”™è¯¯
+                        Diagnose::Write("[SERIAL] æ ¡éªŒå’Œé”™è¯¯: è®¡ç®—=0x%02x, æ¥æ”¶=0x%02x\n", 
                                       checksum_calc, checksum_recv);
                         serial_send_nack();
                         state = 0;
@@ -380,56 +357,56 @@ int serial_recv_packet(char* buffer, int max_len) {
     }
 }
 
-// ×¨ÃÅÓÃÓÚ¼ì²âÖĞ¶ÏµÄº¯Êı£¨·Ç×èÈû£©
+// ä¸“é—¨ç”¨äºæ£€æµ‹ä¸­æ–­çš„å‡½æ•°ï¼ˆéé˜»å¡ï¼‰
 int check_for_interrupt(void) {
     int ch = serial_inb_nb();
     if (ch >= 0) {
         unsigned char c = (unsigned char)ch;
         if (c == 0x03) {
-            Diagnose::Write("[INTERRUPT] ¼ì²âµ½Ctrl+CÖĞ¶Ï\n");
+            Diagnose::Write("[INTERRUPT] æ£€æµ‹åˆ°Ctrl+Cä¸­æ–­\n");
             return 1;
         }
     }
     return 0;
 }
 
-// ´øÖĞ¶Ï¼ì²âµÄ°ü½ÓÊÕº¯Êı
+// å¸¦ä¸­æ–­æ£€æµ‹çš„åŒ…æ¥æ”¶å‡½æ•°
 int serial_recv_packet_with_interrupt(char* buffer, int max_len) {
     // uint32_t start_time = get_system_time();
     
     while (1) {
-        // ¼ì²éÖĞ¶Ï
+        // æ£€æŸ¥ä¸­æ–­
         if (check_for_interrupt()) {
             buffer[0] = 0x03;
             buffer[1] = '\0';
             return 1;
         }
         
-        // ³¢ÊÔ½ÓÊÕ°ü
+        // å°è¯•æ¥æ”¶åŒ…
         int len = serial_recv_packet(buffer, max_len);
         if (len != 0) {
-            return len;  // ³É¹¦½ÓÊÕµ½°ü
+            return len;  // æˆåŠŸæ¥æ”¶åˆ°åŒ…
         }
         
-        // ¼ì²é³¬Ê±
+        // æ£€æŸ¥è¶…æ—¶
         // if (timeout_ms > 0) {
         //     uint32_t current_time = get_system_time();
         //     if (current_time - start_time > timeout_ms) {
-        //         return 0;  // ³¬Ê±
+        //         return 0;  // è¶…æ—¶
         //     }
         // }
         
-        // ¶ÌÔİÑÓ³Ù
+        // çŸ­æš‚å»¶è¿Ÿ
         for (volatile int i = 0; i < 1000; i++);
     }
 }
 
-// ·¢ËÍACKÈ·ÈÏ
+// å‘é€ACKç¡®è®¤
 void serial_send_ack(void) {
     serial_outb('+');
 }
 
-// ·¢ËÍNACKÖØ´«ÇëÇó
+// å‘é€NACKé‡ä¼ è¯·æ±‚
 void serial_send_nack(void) {
     serial_outb('-');
 }

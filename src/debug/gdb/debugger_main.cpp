@@ -1,4 +1,4 @@
-// µ÷ÊÔÆ÷Ö÷Ñ­»·ÊµÏÖ
+// è°ƒè¯•å™¨ä¸»å¾ªç¯å®ç°
 
 #include "../debug.h"
 #include "gdb_protocol.h"
@@ -10,7 +10,7 @@
 #include "../../include/Assembly.h"
 
 
-// µ÷ÊÔÆ÷È«¾Ö×´Ì¬
+// è°ƒè¯•å™¨å…¨å±€çŠ¶æ€
 extern "C" DebuggerState g_debugger = {0};
 static Socket g_listen_socket = (Socket)-1;
 
@@ -22,7 +22,7 @@ void debugger_set_target_running(int running) {
     g_debugger.target_running = running ? 1 : 0;
 }
 
-// ³õÊ¼»¯µ÷ÊÔÆ÷
+// åˆå§‹åŒ–è°ƒè¯•å™¨
 int debugger_init(void) {
     g_debugger.enabled = 1;
     g_debugger.listening = 1;
@@ -32,26 +32,26 @@ int debugger_init(void) {
     g_debugger.mode = DEBUG_MODE_NONE;
     g_debugger.target_running = 0;
 
-    // ³õÊ¼»¯¼Ä´æÆ÷¹ÜÀí
+    // åˆå§‹åŒ–å¯„å­˜å™¨ç®¡ç†
     gdb_registers_init();
 
-    // ³õÊ¼»¯¶Ïµã¹ÜÀí
+    // åˆå§‹åŒ–æ–­ç‚¹ç®¡ç†
     gdb_breakpoints_init();
 
-    // ³õÊ¼»¯ socket ²ã
+    // åˆå§‹åŒ– socket å±‚
     if (gdb_socket_init() != 0) {
         Diagnose::Write("Failed to initialize socket layer\n");
         return -1;
     }
 
-    // ´´½¨¼àÌı socket
+    // åˆ›å»ºç›‘å¬ socket
     g_listen_socket = gdb_socket_create();
     if (g_listen_socket == (Socket)-1) {
         Diagnose::Write("Failed to create listen socket\n");
         return -1;
     }
 
-    // °ó¶¨¶Ë¿Ú
+    // ç»‘å®šç«¯å£
     if (gdb_socket_bind(g_listen_socket, DEBUG_PORT) != 0) {
         Diagnose::Write("Failed to bind to port ");
         Diagnose::Write("1234");
@@ -59,13 +59,13 @@ int debugger_init(void) {
         return -1;
     }
 
-    // ¿ªÊ¼¼àÌı
+    // å¼€å§‹ç›‘å¬
     if (gdb_socket_listen(g_listen_socket) != 0) {
         Diagnose::Write("Failed to listen on socket\n");
         return -1;
     }
 
-    // ÉèÖÃÎª·Ç×èÈû
+    // è®¾ç½®ä¸ºéé˜»å¡
     gdb_socket_set_nonblocking(g_listen_socket, 1);
 
     g_debugger.listening = 1;
@@ -77,15 +77,15 @@ int debugger_init(void) {
     return 0;
 }
 
-// ½âÎö GDB Êı¾İ°ü
+// è§£æ GDB æ•°æ®åŒ…
 // static int gdb_parse_packet(char* buffer, int len, char* packet) {
-//     // GDB Êı¾İ°ü¸ñÊ½: $Êı¾İ#Ğ£ÑéºÍ
+//     // GDB æ•°æ®åŒ…æ ¼å¼: $æ•°æ®#æ ¡éªŒå’Œ
 //     int i = 0;
 //     int packet_len = 0;
 
 //     while (i < len) {
 //         if (buffer[i] == '$') {
-//             // ÕÒµ½Êı¾İ°ü¿ªÊ¼
+//             // æ‰¾åˆ°æ•°æ®åŒ…å¼€å§‹
 //             i++;
 //             while (i < len && buffer[i] != '#') {
 //                 packet[packet_len++] = buffer[i++];
@@ -98,7 +98,7 @@ int debugger_init(void) {
 //             // ACK
 //             i++;
 //         } else if (buffer[i] == '-') {
-//             // NACK,ĞèÒªÖØ·¢
+//             // NACK,éœ€è¦é‡å‘
 //             i++;
 //         } else {
 //             i++;
@@ -108,106 +108,70 @@ int debugger_init(void) {
 //     return 0;
 // }
 
-// µ÷ÊÔÆ÷Ö÷Ñ­»·
+// è°ƒè¯•å™¨ä¸»å¾ªç¯
 void debugger_main(void) {
-    Diagnose::Write("GDB Debugger Main Loop Started (Direct Serial Mode)\n");
-    
     char packet_buffer[DEBUG_BUFFER_SIZE];
-    int debug_cycle = 0;
     int waiting_count = 0;
 
     debugger_set_target_running(0);
     serial_set_rx_interrupt_enabled(0);
     
-    // Ö÷Ñ­»·
+    // ä¸»å¾ªç¯
     while (g_debugger.enabled) {
-        // ½×¶Î1: µÈ´ıGDBÁ¬½Ó£¨½ÓÊÕµÚÒ»¸öÓĞĞ§Êı¾İ°ü£©
+        // é˜¶æ®µ1: ç­‰å¾…GDBè¿æ¥ï¼ˆæ¥æ”¶ç¬¬ä¸€ä¸ªæœ‰æ•ˆæ•°æ®åŒ…ï¼‰
         if (!g_debugger.connected) {
             waiting_count++;
             
-            // // Ã¿1000´ÎÑ­»·Êä³öÒ»´ÎµÈ´ıĞÅÏ¢
+            // // æ¯1000æ¬¡å¾ªç¯è¾“å‡ºä¸€æ¬¡ç­‰å¾…ä¿¡æ¯
             // if (waiting_count % 100000 == 0) {
             //     Diagnose::Write("Waiting for GDB connection... (Listening on COM1)\n");
             // }
             
             int packet_len = serial_recv_packet_with_interrupt(packet_buffer, DEBUG_BUFFER_SIZE);
 
-            // ³¢ÊÔ½ÓÊÕÒ»¸öÊı¾İ°ü£¨·Ç×èÈû£©
+            // å°è¯•æ¥æ”¶ä¸€ä¸ªæ•°æ®åŒ…ï¼ˆéé˜»å¡ï¼‰
             // int packet_len = serial_recv_packet(packet_buffer, DEBUG_BUFFER_SIZE);
             
             if (packet_len > 0) {
-                // ³É¹¦½ÓÊÕµ½µÚÒ»¸öÊı¾İ°ü£¬±ê¼ÇÎªÒÑÁ¬½Ó
+                // æˆåŠŸæ¥æ”¶åˆ°ç¬¬ä¸€ä¸ªæ•°æ®åŒ…ï¼Œæ ‡è®°ä¸ºå·²è¿æ¥
                 g_debugger.connected = 1;
-                Diagnose::Write("*** GDB CLIENT CONNECTED SUCCESSFULLY! ***\n");
-                Diagnose::Write("First packet received: ");
-                Diagnose::Write(packet_buffer);
-                Diagnose::Write("\n");
-
                 if (packet_len == 1 && packet_buffer[0] == 0x03) {
-                    // ´¦ÀíÖĞ¶ÏÇëÇó
-                    Diagnose::Write("[GDB] ´¦ÀíCtrl+CÖĞ¶ÏÇëÇó\n");
-                    
-                    // È¡Ïû¼ÌĞøÖ´ĞĞ
+                    // å–æ¶ˆç»§ç»­æ‰§è¡Œ
                     g_debugger.resume_requested = 0;
                     // g_debugger.listening = 0;
                     
-                    // ·¢ËÍÍ£Ö¹ĞÅºÅ¸øGDB
-                    gdb_send_packet("S02");  // SIGINTĞÅºÅ
+                    // å‘é€åœæ­¢ä¿¡å·ç»™GDB
+                    gdb_send_packet("S02");  // SIGINTä¿¡å·
                     continue;
                 }
-                // ÉèÖÃ¿Í»§¶ËsocketÒÔ±ãgdb_send_packetÄÜ¹¤×÷
+                // è®¾ç½®å®¢æˆ·ç«¯socketä»¥ä¾¿gdb_send_packetèƒ½å·¥ä½œ
                 gdb_set_client_socket(1);
-                // ´¦ÀíµÚÒ»¸ö°ü£¨¿ÉÄÜÊÇqSupported»òvMustReplyEmptyµÈ£©
+                // å¤„ç†ç¬¬ä¸€ä¸ªåŒ…ï¼ˆå¯èƒ½æ˜¯qSupportedæˆ–vMustReplyEmptyç­‰ï¼‰
                 gdb_handle_query(packet_buffer);
             } else if (packet_len < 0) {
-                // ½ÓÊÕ´íÎó£¨¿ÉÄÜÊÇĞ£ÑéºÍ´íÎó£©
-                Diagnose::Write("[ERROR] Packet receive error (checksum mismatch?)\n");
+                // æ¥æ”¶é”™è¯¯ï¼ˆå¯èƒ½æ˜¯æ ¡éªŒå’Œé”™è¯¯ï¼‰
+                Diagnose::Write("[GDB] Packet receive error while waiting for client\n");
             }
             
-            // ¶ÌÔİÑÓ³Ù±ÜÃâCPUÕ¼ÓÃ¹ı¸ß
+            // çŸ­æš‚å»¶è¿Ÿé¿å…CPUå ç”¨è¿‡é«˜
             for (volatile int i = 0; i < 5000; i++);
             continue;
         }
         
-        // ½×¶Î2: ÒÑÁ¬½Ó×´Ì¬£¬´¦ÀíGDBÃüÁî
+        // é˜¶æ®µ2: å·²è¿æ¥çŠ¶æ€ï¼Œå¤„ç†GDBå‘½ä»¤
         else if (g_debugger.connected) {
-            // ³¢ÊÔ½ÓÊÕÊı¾İ°ü£¨·Ç×èÈû£©
+            // å°è¯•æ¥æ”¶æ•°æ®åŒ…ï¼ˆéé˜»å¡ï¼‰
             int packet_len = serial_recv_packet_with_interrupt(packet_buffer, DEBUG_BUFFER_SIZE);
             
             if (packet_len > 0) {
-                // °²È«Êä³öÊı¾İ°üÄÚÈİ£¨±ÜÃâ¶à¸öDiagnose::Writeµ÷ÓÃµ¼ÖÂ½»´í£©
-                char output_msg[DEBUG_BUFFER_SIZE + 100];
-                int pos = 0;
-                
-                // ¸´ÖÆ "[GDB] Command received: "
-                const char* prefix = "[GDB] Command received: ";
-                while (*prefix) output_msg[pos++] = *prefix++;
-                
-                // ¸´ÖÆÊı¾İ°üÄÚÈİ£¨È·±£ÒÔnull½áÎ²£©
-                int copy_len = packet_len;
-                if (copy_len > DEBUG_BUFFER_SIZE - 1) copy_len = DEBUG_BUFFER_SIZE - 1;
-                for (int i = 0; i < copy_len; i++) {
-                    output_msg[pos++] = packet_buffer[i];
-                }
-                
-                output_msg[pos++] = '\n';
-                output_msg[pos] = '\0';
-
-                            // // ÔÚ»Ö¸´µ½±»µ÷ÊÔ³ÌĞòÇ°£¬È·±£ÔÊĞíÍâ²¿ÖĞ¶Ï
-                            // X86Assembly::STI();
-                            // g_debugger.resume_requested = 0;
-                            // return;
-
-                Diagnose::Write(output_msg);
-                
+                gdb_set_current_packet_length(packet_len);
                 if (packet_len == 1 && packet_buffer[0] == 0x03) {
-                    Diagnose::Write("[GDB] ´¦ÀíCtrl+CÖĞ¶ÏÇëÇó\n");
-                    // ´¥·¢µ÷ÊÔÒì³££¬Ê¹³ÌĞòÖØĞÂ½øÈëµ÷ÊÔÆ÷
+                    // è§¦å‘è°ƒè¯•å¼‚å¸¸ï¼Œä½¿ç¨‹åºé‡æ–°è¿›å…¥è°ƒè¯•å™¨
                     asm volatile("int $0x01");
                     continue;
                 }
 
-                // ½âÎöÃüÁî²¢´¦Àí
+                // è§£æå‘½ä»¤å¹¶å¤„ç†
                 GDBCommand cmd = gdb_parse_command(packet_buffer);
                 switch (cmd) {
                     case GDB_CMD_THREAD:
@@ -234,7 +198,7 @@ void debugger_main(void) {
                     case GDB_CMD_WRITE_MEM:
                         gdb_handle_write_memory(packet_buffer);
                         break;
-                    case GDB_CMD_WRITE_MEM_BINARY:  // ĞÂÔö£º¶ş½øÖÆ¸ñÊ½Ğ´Èë
+                    case GDB_CMD_WRITE_MEM_BINARY:  // æ–°å¢ï¼šäºŒè¿›åˆ¶æ ¼å¼å†™å…¥
                         gdb_handle_binary_write_memory(packet_buffer);
                         break;
                     case GDB_CMD_SET_BREAK:
@@ -253,102 +217,149 @@ void debugger_main(void) {
                         gdb_handle_signal(packet_buffer);
                         break;
                     default:
-                        // ¶ÔÓÚÎ´ÖªÃüÁî£¬·µ»ØOK
+                        // å¯¹äºæœªçŸ¥å‘½ä»¤ï¼Œè¿”å›OK
                         serial_send_packet((char*)"OK", 2);
-                        Diagnose::Write("Sent OK response for unknown command\n");
                         break;
                 }
                 if (g_debugger.resume_requested) {
-                    Diagnose::Write("Resuming target execution...\n");
                     g_debugger.resume_requested = 0;
                     debugger_set_target_running(1);
-                    serial_set_rx_interrupt_enabled(1);
-                    X86Assembly::STI();
                     return;
                 }
             } else if (packet_len < 0) {
-                // ½ÓÊÕ´íÎó£¬¿ÉÄÜÊÇÁ¬½Ó¶Ï¿ª
+                // æ¥æ”¶é”™è¯¯ï¼Œå¯èƒ½æ˜¯è¿æ¥æ–­å¼€
                 g_debugger.connected = 0;
-                Diagnose::Write("[WARNING] GDB client disconnected or receive error\n");
-                Diagnose::Write("Returning to waiting mode...\n");
+                Diagnose::Write("[GDB] Client disconnected or packet error\n");
             }
-            // Èç¹ûpacket_len == 0£¬±íÊ¾Ã»ÓĞÊı¾İ£¬¼ÌĞøÑ­»·
+            // å¦‚æœpacket_len == 0ï¼Œè¡¨ç¤ºæ²¡æœ‰æ•°æ®ï¼Œç»§ç»­å¾ªç¯
             
-            // ¶ÌÔİÑÓ³Ù
+            // çŸ­æš‚å»¶è¿Ÿ
             for (volatile int i = 0; i < 20000; i++);
         }
     }
-    
-    Diagnose::Write("GDB Debugger Main Loop Ended\n");
 }
 
 void monitor_execution_mode(void) {
-    Diagnose::Write("[MONITOR] ½øÈëÖ´ĞĞ¼à¿ØÄ£Ê½\n");
-    
-    // »Ö¸´¼Ä´æÆ÷£¬ÈÃ³ÌĞò¿ªÊ¼Ö´ĞĞ
+    // æ¢å¤å¯„å­˜å™¨ï¼Œè®©ç¨‹åºå¼€å§‹æ‰§è¡Œ
     if (is_reg_context_valid()) {
         gdb_registers_restore();
     }
     
-    // Ê¹ÓÃ¼òµ¥µÄ¼ÆÊıÆ÷¶ø²»ÊÇÏµÍ³Ê±¼ä
+    // ä½¿ç”¨ç®€å•çš„è®¡æ•°å™¨è€Œä¸æ˜¯ç³»ç»Ÿæ—¶é—´
     uint32_t check_counter = 0;
-    const uint32_t CHECK_INTERVAL = 10000;  // ¼ì²é¼ä¸ô£¨Ñ­»·´ÎÊı£©
+    const uint32_t CHECK_INTERVAL = 10000;  // æ£€æŸ¥é—´éš”ï¼ˆå¾ªç¯æ¬¡æ•°ï¼‰
     
-    // ¹Ø¼ü£ºÕâÀï²»ÍË³ö£¬¶øÊÇÑ­»·¼ì²éÖĞ¶Ï
+    // å…³é”®ï¼šè¿™é‡Œä¸é€€å‡ºï¼Œè€Œæ˜¯å¾ªç¯æ£€æŸ¥ä¸­æ–­
     while (1) {
         check_counter++;
         
-        // ¶¨ÆÚ¼ì²é´®¿ÚÊÇ·ñÓĞÖĞ¶Ï
+        // å®šæœŸæ£€æŸ¥ä¸²å£æ˜¯å¦æœ‰ä¸­æ–­
         if (check_counter % CHECK_INTERVAL == 0) {
             check_counter = 0;
             
-            // ¼ì²éCtrl+CÖĞ¶Ï£¨·Ç×èÈû£©
+            // æ£€æŸ¥Ctrl+Cä¸­æ–­ï¼ˆéé˜»å¡ï¼‰
             int ch = serial_inb_nb();
             if (ch >= 0) {
                 unsigned char c = (unsigned char)ch;
                 if (c == 0x03) {  // Ctrl+C
-                    Diagnose::Write("[MONITOR] ¼ì²âµ½Ctrl+CÖĞ¶Ï\n");
-                    
-                    // ´¥·¢µ÷ÊÔÒì³££¬Ê¹³ÌĞòÖØĞÂ½øÈëµ÷ÊÔÆ÷
+                    // è§¦å‘è°ƒè¯•å¼‚å¸¸ï¼Œä½¿ç¨‹åºé‡æ–°è¿›å…¥è°ƒè¯•å™¨
                     asm volatile("int $0x01");
                     
-                    // ×¢Òâ£ºÕâÀï²»Òªbreak£¬ÒòÎª´¥·¢Òì³£ºó
-                    // ³ÌĞò»áÍ¨¹ıÒì³£´¦Àí³ÌĞòÖØĞÂ½øÈëdebugger_main
-                    // Õâ¸öº¯Êı»á±»ÖĞ¶Ï£¬¿ØÖÆÈ¨×ªÒÆ
+                    // æ³¨æ„ï¼šè¿™é‡Œä¸è¦breakï¼Œå› ä¸ºè§¦å‘å¼‚å¸¸å
+                    // ç¨‹åºä¼šé€šè¿‡å¼‚å¸¸å¤„ç†ç¨‹åºé‡æ–°è¿›å…¥debugger_main
+                    // è¿™ä¸ªå‡½æ•°ä¼šè¢«ä¸­æ–­ï¼Œæ§åˆ¶æƒè½¬ç§»
                     return;
                 }
             }
         }
         
-        // ¼ì²é³ÌĞòÊÇ·ñÒòÒì³£ÖØĞÂ½øÈëµ÷ÊÔÆ÷
-        // Èç¹ûÓĞĞÂµÄµ÷ÊÔ»á»°¿ªÊ¼£¬resume_requested»á±»ÖØÖÃ
+        // æ£€æŸ¥ç¨‹åºæ˜¯å¦å› å¼‚å¸¸é‡æ–°è¿›å…¥è°ƒè¯•å™¨
+        // å¦‚æœæœ‰æ–°çš„è°ƒè¯•ä¼šè¯å¼€å§‹ï¼Œresume_requestedä¼šè¢«é‡ç½®
         if (!g_debugger.resume_requested) {
-            // ³ÌĞòÓöµ½ÁËĞÂµÄÒì³££¨¶Ïµã¡¢µ¥²½µÈ£©£¬ÒÑÖØĞÂ½øÈëdebugger_main
-            Diagnose::Write("[MONITOR] ¼ì²âµ½ĞÂÒì³££¬³ÌĞòÒÑÖØĞÂ½øÈëµ÷ÊÔ\n");
+            // ç¨‹åºé‡åˆ°äº†æ–°çš„å¼‚å¸¸ï¼ˆæ–­ç‚¹ã€å•æ­¥ç­‰ï¼‰ï¼Œå·²é‡æ–°è¿›å…¥debugger_main
             break;
         }
         
-        // ¶ÌÔİÑÓ³Ù±ÜÃâÃ¦µÈ´ı
+        // çŸ­æš‚å»¶è¿Ÿé¿å…å¿™ç­‰å¾…
         for (volatile int i = 0; i < 100; i++);
     }
-    
-    Diagnose::Write("[MONITOR] ÍË³ö¼à¿ØÄ£Ê½\n");
 }
 
-// »ñÈ¡µ÷ÊÔÆ÷×´Ì¬
+// è·å–è°ƒè¯•å™¨çŠ¶æ€
 DebuggerState* debugger_get_state(void) {
     return &g_debugger;
 }
 
-// µ÷ÊÔÆ÷Èë¿Úº¯Êı£¨Òì³£·¢ÉúÊ±µ÷ÓÃ£©
-void debugger_enter(struct pt_regs* regs, struct pt_context* context) {
-    Diagnose::Write("[DEBUGGER] Entered from trap\n");
+static int debugger_handle_breakpoint_trap(void) {
+    GDBRegisters* regs = gdb_get_registers();
+    if (!regs || regs->eip == 0) {
+        return 0;
+    }
 
+    uint32_t breakpoint_addr = regs->eip - 1;
+    if (gdb_consume_range_step_breakpoint(breakpoint_addr)) {
+        regs->eip = breakpoint_addr;
+        gdb_clear_single_step();
+        gdb_registers_commit_to_trap_frame();
+        return 0;
+    }
+
+    if (gdb_prepare_breakpoint_resume(breakpoint_addr) != 0) {
+        return 0;
+    }
+
+    gdb_clear_range_step();
+    regs->eip = breakpoint_addr;
+    gdb_clear_single_step();
+    gdb_registers_commit_to_trap_frame();
+    return 1;
+}
+
+static int debugger_handle_debug_trap(void) {
+    int auto_continue = 0;
+
+    if (gdb_has_pending_breakpoint_resume()) {
+        auto_continue = gdb_get_pending_breakpoint_auto_continue();
+        gdb_finish_breakpoint_resume();
+    }
+
+    if (gdb_has_range_step()) {
+        uint32_t pc = gdb_get_register_value(GDB_REG_EIP);
+        if (!gdb_range_step_should_stop(pc)) {
+            if (gdb_prepare_range_step_resume(pc)) {
+                gdb_clear_single_step();
+            } else {
+                gdb_set_single_step();
+            }
+            gdb_registers_commit_to_trap_frame();
+            debugger_set_target_running(1);
+            return 1;
+        }
+    }
+
+    if (auto_continue) {
+        gdb_clear_single_step();
+        gdb_registers_commit_to_trap_frame();
+        debugger_set_target_running(1);
+        return 1;
+    }
+
+    return 0;
+}
+
+// è°ƒè¯•å™¨å…¥å£å‡½æ•°ï¼ˆå¼‚å¸¸å‘ç”Ÿæ—¶è°ƒç”¨ï¼‰
+void debugger_enter(DebugTrapType trap_type, struct pt_regs* regs, struct pt_context* context) {
     debugger_set_target_running(0);
     serial_set_rx_interrupt_enabled(0);
 
     gdb_registers_invalidate();
     gdb_registers_bind_trap_frame(regs, context);
+
+    if (trap_type == DEBUG_TRAP_BREAKPOINT) {
+        debugger_handle_breakpoint_trap();
+    } else if (trap_type == DEBUG_TRAP_DEBUG && debugger_handle_debug_trap()) {
+        return;
+    }
 
     gdb_send_packet("S05");
     g_debugger.resume_requested = 0;
@@ -356,5 +367,4 @@ void debugger_enter(struct pt_regs* regs, struct pt_context* context) {
     debugger_main();
 
     gdb_registers_commit_to_trap_frame();
-    Diagnose::Write("[DEBUGGER] Leaving trap debugger\n");
 }

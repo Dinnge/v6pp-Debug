@@ -302,6 +302,9 @@ extern "C" void next()
 	PageManager::PHY_MEM_SIZE = memSize * 1024;
 	UserPageManager::USER_PAGE_POOL_SIZE = PageManager::PHY_MEM_SIZE - UserPageManager::USER_PAGE_POOL_START_ADDR;
 
+	debug_start();
+	__asm__ __volatile__("int3");
+
 	/* ÕæÕý²Ù×÷ÏµÍ³ÄÚºË³õÊ¼»¯Âß¼­	 */
 	Kernel::Instance().Initialize();	
 	Kernel::Instance().GetProcessManager().SetupProcessZero();
@@ -345,10 +348,6 @@ extern "C" void next()
 	}
 	Diagnose::TraceOn();
 
-// #ifdef KERNEL_GDB_AUTOSTART
-	debug_start();
-// #endif
-	
 #ifdef ENABLE_SPLASH
 	// show splash.
 	splash();

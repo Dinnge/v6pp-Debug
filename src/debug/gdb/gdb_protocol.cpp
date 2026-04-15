@@ -581,6 +581,13 @@ void host32_to_gdb_hex(uint32_t value, char* output) {
 
 // È«¾Ö socket ±äÁ¿
 static Socket g_client_socket = (Socket)-1;
+static int g_current_packet_length = 0;
+static int g_range_step_active = 0;
+static uint32_t g_range_step_start = 0;
+static uint32_t g_range_step_end = 0;
+static int g_range_step_breakpoint_active = 0;
+static uint32_t g_range_step_breakpoint_addr = 0;
+static uint8_t g_range_step_breakpoint_orig_byte = 0;
 // È«¾Ö¼Ä´æÆ÷ÉÏÏÂÎÄ
 // static GDBRegisters g_reg_context;
 
@@ -593,6 +600,121 @@ void gdb_set_client_socket(Socket sock) {
 // »ñÈ¡µ±Ç°¿Í»§¶Ë socket
 Socket gdb_get_client_socket(void) {
     return g_client_socket;
+}
+
+void gdb_set_current_packet_length(int len) {
+    g_current_packet_length = len;
+}
+
+int gdb_get_current_packet_length(void) {
+    return g_current_packet_length;
+}
+
+void gdb_clear_range_step(void) {
+    if (g_range_step_breakpoint_active) {
+        uint8_t* mem_ptr = (uint8_t*)g_range_step_breakpoint_addr;
+        *mem_ptr = g_range_step_breakpoint_orig_byte;
+    }
+
+    g_range_step_active = 0;
+    g_range_step_start = 0;
+    g_range_step_end = 0;
+    g_range_step_breakpoint_active = 0;
+    g_range_step_breakpoint_addr = 0;
+    g_range_step_breakpoint_orig_byte = 0;
+}
+
+int gdb_has_range_step(void) {
+    return g_range_step_active;
+}
+
+int gdb_range_step_should_stop(uint32_t pc) {
+    if (!g_range_step_active) {
+        return 1;
+    }
+
+    if (pc < g_range_step_start || pc >= g_range_step_end) {
+        gdb_clear_range_step();
+        return 1;
+    }
+
+    return 0;
+}
+
+static int gdb_is_call_instruction(uint32_t pc) {
+    const uint8_t* insn = (const uint8_t*)pc;
+    if (!insn) {
+        return 0;
+    }
+
+    if (insn[0] == 0xE8 || insn[0] == 0x9A) {
+        return 1;
+    }
+
+    if (insn[0] == 0xFF) {
+        uint8_t modrm = insn[1];
+        uint8_t reg = (modrm >> 3) & 0x7;
+        if (reg == 2 || reg == 3) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static int gdb_arm_range_step_breakpoint(uint32_t addr) {
+    if (gdb_find_breakpoint(addr) != 0) {
+        return 1;
+    }
+
+    if (g_range_step_breakpoint_active && g_range_step_breakpoint_addr == addr) {
+        return 1;
+    }
+
+    uint8_t* mem_ptr = (uint8_t*)addr;
+    g_range_step_breakpoint_addr = addr;
+    g_range_step_breakpoint_orig_byte = *mem_ptr;
+    *mem_ptr = 0xCC;
+    g_range_step_breakpoint_active = 1;
+    return 1;
+}
+
+int gdb_activate_range_step(uint32_t current_pc, uint32_t start, uint32_t end) {
+    gdb_clear_range_step();
+
+    g_range_step_active = 1;
+    g_range_step_start = start;
+    g_range_step_end = end;
+    if (current_pc == start && gdb_is_call_instruction(current_pc)) {
+        return gdb_arm_range_step_breakpoint(end);
+    }
+    return 0;
+}
+
+int gdb_consume_range_step_breakpoint(uint32_t addr) {
+    if (!g_range_step_breakpoint_active || addr != g_range_step_breakpoint_addr) {
+        return 0;
+    }
+
+    uint8_t* mem_ptr = (uint8_t*)g_range_step_breakpoint_addr;
+    *mem_ptr = g_range_step_breakpoint_orig_byte;
+
+    g_range_step_breakpoint_active = 0;
+    g_range_step_breakpoint_addr = 0;
+    g_range_step_breakpoint_orig_byte = 0;
+    return 1;
+}
+
+int gdb_prepare_range_step_resume(uint32_t current_pc) {
+    if (!g_range_step_active) {
+        return 0;
+    }
+
+    if (!gdb_is_call_instruction(current_pc)) {
+        return 0;
+    }
+
+    return gdb_arm_range_step_breakpoint(g_range_step_end);
 }
 
 // ½ÓÊÕ GDB Êý¾Ý°ü£¨´ø ACK/NACK Ö§³Ö£©
@@ -696,27 +818,6 @@ int gdb_recv_packet(char* buffer, int buffer_size) {
 void gdb_send_packet(char* data) {
     if (g_client_socket == (Socket)-1) return;
 
-    if (data[0] != 'O') {
-        // µ÷ÊÔÈÕÖ¾£º·¢ËÍÊý¾Ý°ü£¨Ê¹ÓÃÔ­×ÓÊä³ö£©
-        char tx_msg[DEBUG_BUFFER_SIZE + 100];
-        int msg_pos = 0;
-        
-        // ¸´ÖÆ "[GDB] TX packet: "
-        const char* tx_prefix = "[GDB] TX packet: ";
-        while (*tx_prefix) tx_msg[msg_pos++] = *tx_prefix++;
-        
-        // ¸´ÖÆÊý¾ÝÄÚÈÝ
-        int i = 0;
-        while (data[i] != '\0' && i < DEBUG_BUFFER_SIZE - 1) {
-            tx_msg[msg_pos++] = data[i++];
-        }
-        
-        tx_msg[msg_pos++] = '\n';
-        tx_msg[msg_pos] = '\0';
-        
-        Diagnose::Write(tx_msg);
-    }
-
     char buffer[DEBUG_BUFFER_SIZE];
     int len = strlen(data);
 
@@ -818,6 +919,10 @@ GDBCommand gdb_parse_command(char* packet) {
     if (strncmp(packet, "vCont;s", 7) == 0) {
         return GDB_CMD_STEP;  // vCont;s... ÊÇµ¥²½
     }
+
+    if (strncmp(packet, "vCont;r", 7) == 0) {
+        return GDB_CMD_STEP;  // vCont;r... ÊÇ·¶Î§µ¥²½
+    }
     char cmd = packet[0];
     switch (cmd) {
         case 'c': return GDB_CMD_CONTINUE;
@@ -840,35 +945,88 @@ GDBCommand gdb_parse_command(char* packet) {
 
 // ´¦Àí¼ÌÐøÖ´ÐÐÃüÁî
 void gdb_handle_continue(char* packet) {
-    Diagnose::Write("[GDB] continue command: %s\n", packet);
-
     if (strcmp(packet, "c") == 0 || strncmp(packet, "vCont;c", 7) == 0) {
-        GDBRegisters* regs = gdb_get_registers();
-        regs->eflags |= 0x200;
-        gdb_clear_single_step();
+        gdb_clear_range_step();
+        if (gdb_has_pending_breakpoint_resume()) {
+            gdb_set_pending_breakpoint_auto_continue(1);
+            gdb_set_single_step();
+        } else {
+            gdb_clear_single_step();
+        }
         gdb_registers_commit_to_trap_frame();
         g_debugger.mode = DEBUG_MODE_CONTINUE;
         g_debugger.resume_requested = 1;
-        Diagnose::Write("[CONTINUE] resume requested\n");
     } else {
-        Diagnose::Write("[ERROR] invalid continue command: %s\n", packet);
         gdb_send_error(0);
     }
 }
 
+static int gdb_parse_range_step_packet(char* packet, uint32_t* start, uint32_t* end) {
+    if (strncmp(packet, "vCont;r", 7) != 0) {
+        return 0;
+    }
+
+    char* ptr = packet + 7;
+    uint32_t parsed_start = 0;
+    uint32_t parsed_end = 0;
+
+    while (*ptr != ',' && *ptr != '\0') {
+        char c = *ptr++;
+        if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+            parsed_start = (parsed_start << 4) | hex_char_to_value(c);
+        } else {
+            return 0;
+        }
+    }
+
+    if (*ptr != ',') {
+        return 0;
+    }
+    ptr++;
+
+    while (*ptr != ':' && *ptr != ';' && *ptr != '\0') {
+        char c = *ptr++;
+        if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+            parsed_end = (parsed_end << 4) | hex_char_to_value(c);
+        } else {
+            return 0;
+        }
+    }
+
+    if (parsed_end <= parsed_start) {
+        return 0;
+    }
+
+    *start = parsed_start;
+    *end = parsed_end;
+    return 1;
+}
+
 void gdb_handle_step(char* packet) {
-    Diagnose::Write("[GDB] step command: %s\n", packet);
+    uint32_t range_start = 0;
+    uint32_t range_end = 0;
 
     if (strcmp(packet, "s") == 0 || strncmp(packet, "vCont;s", 7) == 0) {
-        GDBRegisters* regs = gdb_get_registers();
-        regs->eflags |= 0x200;
+        gdb_clear_range_step();
+        gdb_set_pending_breakpoint_auto_continue(0);
         gdb_set_single_step();
         gdb_registers_commit_to_trap_frame();
         g_debugger.mode = DEBUG_MODE_STEP;
         g_debugger.resume_requested = 1;
-        Diagnose::Write("[STEP] single-step requested\n");
+    } else if (gdb_parse_range_step_packet(packet, &range_start, &range_end)) {
+        int use_continue = gdb_activate_range_step(gdb_get_register_value(GDB_REG_EIP),
+                                                   range_start,
+                                                   range_end);
+        gdb_set_pending_breakpoint_auto_continue(0);
+        if (use_continue) {
+            gdb_clear_single_step();
+        } else {
+            gdb_set_single_step();
+        }
+        gdb_registers_commit_to_trap_frame();
+        g_debugger.mode = DEBUG_MODE_STEP;
+        g_debugger.resume_requested = 1;
     } else {
-        Diagnose::Write("[ERROR] invalid step command: %s\n", packet);
         gdb_send_error(0);
     }
 }
@@ -883,10 +1041,12 @@ void gdb_handle_thread_command(char* packet) {
     char op_type = packet[1];  // 'g', 'c', »ò 's'
     char* thread_str = packet + 2;
     
-    Diagnose::Write("[GDB] Ïß³ÌÃüÁî: ²Ù×÷=%c, Ïß³Ì=%s\n", op_type, thread_str);
-    
-    // µ¥Ïß³ÌÏµÍ³£¬Ö»Ö§³ÖÏß³Ì0ºÍ1
-    if (strcmp(thread_str, "0") == 0 || strcmp(thread_str, "1") == 0) {
+    // 单线程系统，接受 GDB 常见线程选择写法
+    if (strcmp(thread_str, "0") == 0 ||
+        strcmp(thread_str, "1") == 0 ||
+        strcmp(thread_str, "-1") == 0 ||
+        strcmp(thread_str, "p0.0") == 0 ||
+        strcmp(thread_str, "p1.1") == 0) {
         gdb_send_packet("OK");
     } else {
         gdb_send_packet("E01");  // ÎÞÐ§Ïß³Ì
@@ -1533,26 +1693,48 @@ void gdb_handle_binary_write_memory(char* packet) {
     len_hex[len_len] = '\0';
     uint32_t len = hex_str_to_uint(len_hex);
     
-    // ÌáÈ¡¶þ½øÖÆÊý¾Ý
-    char* binary_data = colon + 1;
-    int data_len = gdb_strlen(binary_data);
-    
-    // ¹Ø¼üÐÞ¸´£ºÑéÖ¤Êý¾Ý³¤¶È
-    if (data_len != len) {
-        gdb_send_packet("E03");  // Êý¾Ý³¤¶È²»Æ¥Åä
-        return;
-    }
-    
     // ÏÞÖÆ³¤¶È
     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
         gdb_send_packet("E02");  // ³¤¶È´íÎó
         return;
     }
-    
-    Diagnose::Write("[GDB] ¶þ½øÖÆÐ´Èë: µØÖ·=0x%08x, ³¤¶È=%u\n", host_addr, len);
-    
-    // °²È«Ð´Èë
-    if (gdb_safe_write_memory(host_addr, binary_data, len) < 0) {
+
+    if (host_addr < 0xC0000000) {
+        gdb_send_packet("E01");
+        return;
+    }
+
+    const int packet_len = gdb_get_current_packet_length();
+    const int payload_offset = (int)((colon + 1) - packet);
+    const int encoded_len = packet_len - payload_offset;
+    if (encoded_len < 0) {
+        gdb_send_packet("E03");
+        return;
+    }
+
+    static char decoded_data[DEBUG_BUFFER_SIZE];
+    int decoded_len = 0;
+    const unsigned char* encoded = (const unsigned char*)(colon + 1);
+
+    for (int i = 0; i < encoded_len && decoded_len < (int)len; i++) {
+        unsigned char ch = encoded[i];
+        if (ch == '}') {
+            i++;
+            if (i >= encoded_len) {
+                gdb_send_packet("E03");
+                return;
+            }
+            ch = encoded[i] ^ 0x20;
+        }
+        decoded_data[decoded_len++] = (char)ch;
+    }
+
+    if (decoded_len != (int)len) {
+        gdb_send_packet("E03");
+        return;
+    }
+
+    if (gdb_safe_write_memory(host_addr, decoded_data, len) < 0) {
         gdb_send_packet("E04");  // Ð´ÈëÊ§°Ü
         return;
     }
@@ -1715,18 +1897,6 @@ void gdb_handle_remove_breakpoint(char* p) {
 }
 
 void gdb_handle_query(char* p) {
-    char query_msg[DEBUG_BUFFER_SIZE + 100];
-    int pos = 0;
-    const char* prefix = "[GDB] Query packet: ";
-    while (*prefix) query_msg[pos++] = *prefix++;
-    int i = 0;
-    while (p[i] != '\0' && i < DEBUG_BUFFER_SIZE - 1) {
-        query_msg[pos++] = p[i++];
-    }
-    query_msg[pos++] = '\n';
-    query_msg[pos] = '\0';
-    Diagnose::Write(query_msg);
-
     // qSupported - GDB ÌØÐÔ²éÑ¯
     if (strncmp(p, "qSupported", 10) == 0) {
         gdb_send_packet((char*)"PacketSize=1000;qRelocInsn+;multiprocess+;vContSupported+;QStartNoAckMode-;timeout-;qXfer:features:read-;qXfer:threads:read-");
@@ -1741,7 +1911,7 @@ void gdb_handle_query(char* p) {
 
     // vCont? - ²éÑ¯Ö§³ÖµÄ¼ÌÐøÃüÁî
     if (strcmp(p, "vCont?") == 0) {
-        gdb_send_packet((char*)"vCont;c;C;s;S");
+        gdb_send_packet((char*)"vCont;c;C;s;S;r");
         return;
     }
 
@@ -1783,7 +1953,6 @@ void gdb_handle_query(char* p) {
 
     if (strcmp(p, "?") == 0) {
         gdb_send_packet("S05");  // ·¢ËÍÍ£Ö¹ÐÅºÅ
-        Diagnose::Write("[GDB] ÏìÓ¦ÐÅºÅ²éÑ¯\n");
     }
 
     // qRcmd - 处理GDB monitor命令
@@ -1803,10 +1972,6 @@ void gdb_handle_query(char* p) {
             cmd[cmd_len++] = (char)byte;
         }
         cmd[cmd_len] = '\0';
-        
-        Diagnose::Write("[GDB] Monitor command received: ");
-        Diagnose::Write(cmd);
-        Diagnose::Write("\n");
         
         // 处理文件系统调试命令 (qfs:* / aliases)
         if (is_fs_debugger_monitor_command(cmd)) {

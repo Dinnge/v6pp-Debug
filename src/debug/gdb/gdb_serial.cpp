@@ -372,31 +372,14 @@ int check_for_interrupt(void) {
 
 // 带中断检测的包接收函数
 int serial_recv_packet_with_interrupt(char* buffer, int max_len) {
-    // uint32_t start_time = get_system_time();
-    
     while (1) {
-        // 检查中断
-        if (check_for_interrupt()) {
-            buffer[0] = 0x03;
-            buffer[1] = '\0';
-            return 1;
-        }
-        
-        // 尝试接收包
+        // serial_recv_packet() 自身已经能识别 Ctrl+C(0x03)。
+        // 这里不要额外预读串口，否则会把正常 GDB 包的 '$' 吃掉。
         int len = serial_recv_packet(buffer, max_len);
         if (len != 0) {
-            return len;  // 成功接收到包
+            return len;
         }
-        
-        // 检查超时
-        // if (timeout_ms > 0) {
-        //     uint32_t current_time = get_system_time();
-        //     if (current_time - start_time > timeout_ms) {
-        //         return 0;  // 超时
-        //     }
-        // }
-        
-        // 短暂延迟
+
         for (volatile int i = 0; i < 1000; i++);
     }
 }

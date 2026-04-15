@@ -5,6 +5,7 @@ static GDBRegisters g_reg_context;
 static int g_reg_context_valid = 0;
 static struct pt_regs* g_bound_regs = 0;
 static struct pt_context* g_bound_context = 0;
+static int g_bound_from_user = 0;
 
 static const char* hex_chars = "0123456789abcdef";
 
@@ -15,6 +16,7 @@ void gdb_registers_init(void) {
     g_reg_context_valid = 0;
     g_bound_regs = 0;
     g_bound_context = 0;
+    g_bound_from_user = 0;
 }
 
 int is_reg_context_valid(void) {
@@ -23,7 +25,6 @@ int is_reg_context_valid(void) {
 
 void gdb_registers_save(void) {
     if (g_reg_context_valid) {
-        Diagnose::Write("[DEBUG] gdb_registers_save: context already valid, skip saving\n");
         return;
     }
 
@@ -61,21 +62,24 @@ void gdb_registers_invalidate(void) {
     g_reg_context_valid = 0;
     g_bound_regs = 0;
     g_bound_context = 0;
+    g_bound_from_user = 0;
 }
 
 void gdb_registers_bind_trap_frame(struct pt_regs* regs, struct pt_context* context) {
     g_bound_regs = regs;
     g_bound_context = context;
+    g_bound_from_user = 0;
 
     if (!regs || !context) {
         return;
     }
 
+    g_bound_from_user = ((context->xcs & USER_MODE) == USER_MODE) ? 1 : 0;
+
     g_reg_context.eax = regs->eax;
     g_reg_context.ecx = regs->ecx;
     g_reg_context.edx = regs->edx;
     g_reg_context.ebx = regs->ebx;
-    g_reg_context.esp = context->esp;
     g_reg_context.ebp = regs->ebp;
     g_reg_context.esi = regs->esi;
     g_reg_context.edi = regs->edi;
@@ -83,10 +87,16 @@ void gdb_registers_bind_trap_frame(struct pt_regs* regs, struct pt_context* cont
     g_reg_context.eip = context->eip;
     g_reg_context.eflags = context->eflags;
     g_reg_context.cs = context->xcs;
-    g_reg_context.ss = context->xss;
-
     g_reg_context.ds = regs->xds;
     g_reg_context.es = regs->xes;
+
+    if (g_bound_from_user) {
+        g_reg_context.esp = context->esp;
+        g_reg_context.ss = context->xss;
+    } else {
+        g_reg_context.esp = (uint32_t)context + sizeof(uint32_t) * 3;
+        __asm__ volatile ("movw %%ss, %0" : "=m"(g_reg_context.ss));
+    }
 
     __asm__ volatile ("movw %%fs, %0" : "=m"(g_reg_context.fs));
     __asm__ volatile ("movw %%gs, %0" : "=m"(g_reg_context.gs));
@@ -112,8 +122,10 @@ void gdb_registers_commit_to_trap_frame(void) {
     g_bound_context->eip = g_reg_context.eip;
     g_bound_context->eflags = g_reg_context.eflags;
     g_bound_context->xcs = g_reg_context.cs;
-    g_bound_context->esp = g_reg_context.esp;
-    g_bound_context->xss = g_reg_context.ss;
+    if (g_bound_from_user) {
+        g_bound_context->esp = g_reg_context.esp;
+        g_bound_context->xss = g_reg_context.ss;
+    }
 }
 
 void gdb_registers_restore(void) {
@@ -175,11 +187,6 @@ void gdb_set_register(int reg_num, uint32_t value) {
     switch (reg_num) {
         case GDB_REG_EAX:
             __asm__ __volatile__("movl %0, %%eax" : : "r"(value) : "eax", "memory");
-            {
-                uint32_t check;
-                __asm__ __volatile__("movl %%eax, %0" : "=r"(check));
-                Diagnose::Write("[DEBUG] physical EAX after write = 0x%08x\n", check);
-            }
             break;
         case GDB_REG_ECX:
             __asm__ __volatile__("movl %0, %%ecx" : : "r"(value) : "ecx", "memory");
@@ -198,17 +205,10 @@ void gdb_set_register(int reg_num, uint32_t value) {
             break;
         case GDB_REG_EFLAGS:
             __asm__ __volatile__("pushl %0\n\tpopfl" : : "r"(value) : "cc", "memory");
-            {
-                uint32_t check;
-                __asm__ __volatile__("pushfl\n\tpopl %0" : "=r"(check));
-                Diagnose::Write("[DEBUG] physical EFLAGS after write = 0x%08x\n", check);
-            }
             break;
         case GDB_REG_ESP:
-            Diagnose::Write("[GDB] 警告: 写 ESP 请求已记录，仅更新软件上下文\n");
             break;
         case GDB_REG_EBP:
-            Diagnose::Write("[GDB] 警告: 写 EBP 请求已记录，仅更新软件上下文\n");
             break;
         default:
             // EIP, 段寄存器等不在此处写回
@@ -221,9 +221,7 @@ void gdb_set_register(int reg_num, uint32_t value) {
         "EIP", "EFLAGS", "CS", "SS", "DS", "ES", "FS", "GS"
     };
     
-    if (reg_num >= 0 && reg_num < 16) {
-        Diagnose::Write("[DEBUG] 设置寄存器 %s = 0x%08x\n", reg_names[reg_num], value);
-    }
+    (void)reg_names;
 }
 
 uint32_t gdb_get_register_value(int reg_num) {

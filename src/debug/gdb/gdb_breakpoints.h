@@ -1,46 +1,54 @@
-// GDB ¶Ïµã¹ÜÀíÍ·ÎÄ¼ş
+// GDB æ–­ç‚¹ç®¡ç†å¤´æ–‡ä»¶
 
 #ifndef GDB_BREAKPOINTS_H
 #define GDB_BREAKPOINTS_H
 
 #include "../../libyrosstd/sys/types.h"
 
-// ¶ÏµãÀàĞÍ
+// æ–­ç‚¹ç±»å‹
 typedef enum {
-    GDB_BREAK_SOFTWARE = 0,  // Èí¼ş¶Ïµã (0xCC)
-    GDB_BREAK_HARDWARE = 1,   // Ó²¼ş¶Ïµã
-    GDB_BREAK_WRITEWATCH = 2,  // Ğ´¹Û²ìµã
-    GDB_BREAK_READWATCH = 3,   // ¶Á¹Û²ìµã
-    GDB_BREAK_ACCESSWATCH = 4  // ·ÃÎÊ¹Û²ìµã
+    GDB_BREAK_SOFTWARE = 0,  // è½¯ä»¶æ–­ç‚¹ (0xCC)
+    GDB_BREAK_HARDWARE = 1,   // ç¡¬ä»¶æ–­ç‚¹
+    GDB_BREAK_WRITEWATCH = 2,  // å†™è§‚å¯Ÿç‚¹
+    GDB_BREAK_READWATCH = 3,   // è¯»è§‚å¯Ÿç‚¹
+    GDB_BREAK_ACCESSWATCH = 4  // è®¿é—®è§‚å¯Ÿç‚¹
 } GDBBreakpointType;
 
-// ¶ÏµãĞÅÏ¢
+// æ–­ç‚¹ä¿¡æ¯
 typedef struct {
-    uint32_t addr;           // ¶ÏµãµØÖ·
-    GDBBreakpointType type;   // ¶ÏµãÀàĞÍ
-    uint8_t orig_byte;       // Ô­Ê¼×Ö½Ú£¨ÓÃÓÚ»Ö¸´£©
-    int enabled;             // ÊÇ·ñÆôÓÃ
+    uint32_t addr;           // æ–­ç‚¹åœ°å€
+    GDBBreakpointType type;  // æ–­ç‚¹ç±»å‹
+    uint8_t orig_byte;       // åŸå§‹å­—èŠ‚ï¼ˆç”¨äºæ¢å¤ï¼‰
+    int enabled;             // æ˜¯å¦å¯ç”¨
+    int inserted;            // æ˜¯å¦å·²ç»å†™å…¥ INT3
 } GDBBreakpoint;
 
-// ×î´ó¶ÏµãÊıÁ¿
+// æœ€å¤§æ–­ç‚¹æ•°é‡
 #define GDB_MAX_BREAKPOINTS 16
 
-// ¶Ïµã¹ÜÀíº¯Êı
+// æ–­ç‚¹ç®¡ç†å‡½æ•°
 void gdb_breakpoints_init(void);
 
-// Ìí¼Ó¶Ïµã
+// æ·»åŠ æ–­ç‚¹
 int gdb_add_breakpoint(uint32_t addr, GDBBreakpointType type);
 
-// ÒÆ³ı¶Ïµã
+// ç§»é™¤æ–­ç‚¹
 int gdb_remove_breakpoint(uint32_t addr);
 
-// ²éÕÒ¶Ïµã
+// æŸ¥æ‰¾æ–­ç‚¹
 GDBBreakpoint* gdb_find_breakpoint(uint32_t addr);
 
-// ÆôÓÃËùÓĞ¶Ïµã
+// å¯ç”¨æ‰€æœ‰æ–­ç‚¹
 void gdb_enable_breakpoints(void);
 
-// ½ûÓÃËùÓĞ¶Ïµã
+// ç¦ç”¨æ‰€æœ‰æ–­ç‚¹
 void gdb_disable_breakpoints(void);
+
+int gdb_prepare_breakpoint_resume(uint32_t addr);
+int gdb_has_pending_breakpoint_resume(void);
+void gdb_set_pending_breakpoint_auto_continue(int auto_continue);
+int gdb_get_pending_breakpoint_auto_continue(void);
+int gdb_finish_breakpoint_resume(void);
+void gdb_cancel_pending_breakpoint_resume(void);
 
 #endif // GDB_BREAKPOINTS_H

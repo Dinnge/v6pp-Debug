@@ -1,36 +1,40 @@
-// 调试器集成模坄1�7 - 连接到内栄1�7
+// 璋冭瘯鍣ㄩ泦鎴愭ā鍧� - 杩炴帴鍒板唴鏍�
 
 #include "../debug.h"
 #include "../../include/Kernel.h"
 #include "../../include/Video.h"
 
-// 调试器启动入叄1�7
+// 璋冭瘯鍣ㄥ惎鍔ㄥ叆鍙�
 extern "C" void debug_start(void) {
+    static int debugger_started = 0;
+    if (debugger_started) {
+        return;
+    }
+
     Diagnose::Write("\n===================================\n");
     Diagnose::Write("V6++ Debugger Starting...\n");
     Diagnose::Write("===================================\n\n");
 
-    // 初始化调试器
+    // 鍒濆鍖栬皟璇曞櫒
     if (debugger_init() != 0) {
         Diagnose::Write("Failed to initialize debugger!\n");
         return;
     }
 
-    // 启动调试器主循环
-    debugger_main();
+    debugger_started = 1;
 }
 
-// 调试器停止入叄1�7
+// 璋冭瘯鍣ㄥ仠姝㈠叆鍙�
 extern "C" void debug_stop(void) {
     Diagnose::Write("\n===================================\n");
     Diagnose::Write("V6++ Debugger Stopped\n");
     Diagnose::Write("===================================\n");
 }
 
-// 调试器钩孄1�7 - 从异常处理程序调甄1�7
+// 璋冭瘯鍣ㄩ挬瀛� - 浠庡紓甯稿鐞嗙▼搴忚皟鐢�
 extern "C" void debug_hook(void) {
     Diagnose::Write("Debug hook triggered\n");
-    // TODO: 保存上下斄1�7
-    // TODO: 棢�查断炄1�7
-    // TODO: 丄1�7 GDB 通信
+    // TODO: 淇濆瓨涓婁笅鏂�
+    // TODO: 妫€鏌ユ柇鐐�
+    // TODO: 涓� GDB 閫氫俊
 }

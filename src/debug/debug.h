@@ -34,6 +34,12 @@ typedef enum {
     DEBUG_MODE_STEP
 } DebugMode;
 
+typedef enum {
+    DEBUG_TRAP_UNKNOWN = 0,
+    DEBUG_TRAP_DEBUG = 1,
+    DEBUG_TRAP_BREAKPOINT = 3
+} DebugTrapType;
+
 typedef struct {
     int enabled;
     int listening;
@@ -50,7 +56,7 @@ void debugger_main(void);
 void gdb_send_packet(char* data);
 void gdb_send_ok(void);
 void gdb_send_error(int code);
-void debugger_enter(struct pt_regs* regs, struct pt_context* context);
+void debugger_enter(DebugTrapType trap_type, struct pt_regs* regs, struct pt_context* context);
 void monitor_execution_mode(void);
 int debugger_is_target_running(void);
 void debugger_set_target_running(int running);

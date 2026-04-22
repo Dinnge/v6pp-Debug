@@ -25,6 +25,9 @@ void Exception::Exception_Entrance() \
 	InterruptReturn();		\
 }
 
+#define IMPLEMENT_DEBUG_EXCEPTION_ENTRANCE(Exception_Entrance, Exception_Handler) \
+	IMPLEMENT_EXCEPTION_ENTRANCE(Exception_Entrance, Exception_Handler)
+
 /* 
  * 声明INT 0 - INT 31号异常在IDT中的入口函数(Entrance)
  * -->有出错码(ErrCode)<-- 的异常
@@ -180,7 +183,7 @@ IMPLEMENT_EXCEPTION_HANDLER(DivideError, "Divide Exception!", User::SIGFPE)
 
 
 //调试异常(INT 1)
-IMPLEMENT_EXCEPTION_ENTRANCE(DebugEntrance, Debug)
+IMPLEMENT_DEBUG_EXCEPTION_ENTRANCE(DebugEntrance, Debug)
 // IMPLEMENT_EXCEPTION_HANDLER(Debug, "Debug Exception!", User::SIGTRAP)
 void Exception::Debug(struct pt_regs* regs, struct pt_context* context) {
     debugger_enter(DEBUG_TRAP_DEBUG, regs, context);
@@ -204,7 +207,7 @@ IMPLEMENT_EXCEPTION_HANDLER(NMI, "Non-maskable Interrupt!", User::SIGNUL)
 
 
 //调试断点(INT 3)
-IMPLEMENT_EXCEPTION_ENTRANCE(BreakpointEntrance, Breakpoint)
+IMPLEMENT_DEBUG_EXCEPTION_ENTRANCE(BreakpointEntrance, Breakpoint)
 // IMPLEMENT_EXCEPTION_HANDLER(Breakpoint, "Breakpoint Exception!", User::SIGTRAP)
 void Exception::Breakpoint(struct pt_regs* regs, struct pt_context* context) {
     debugger_enter(DEBUG_TRAP_BREAKPOINT, regs, context);
@@ -278,31 +281,31 @@ IMPLEMENT_EXCEPTION_ENTRANCE_ERRCODE(PageFaultEntrance, PageFault)
 
 void Exception::PageFault(struct pt_regs* regs, struct pte_context* context)
 {
-
-	User& u = Kernel::Instance().GetUser();
-	Process* current = u.u_procp;
-	MemoryDescriptor& md = u.u_MemoryDescriptor;
-
 	unsigned int cr2;
 	__asm__ __volatile__(" mov %%cr2, %0":"=r"(cr2) );
 
     /*由缺页异常处理程序每次扩展一页，如果合理的缺了多张堆栈页面，那就多执行几次缺页异常，直到把这些页面补齐*/
 
-	if( (context->xcs & USER_MODE) == USER_MODE)
+	if( (context->xcs & USER_MODE) != USER_MODE)
 	{
-		if( cr2 < MemoryDescriptor::USER_SPACE_SIZE - md.m_StackSize && cr2 >= context->esp - 8
-				&& md.m_DataSize + md.m_StackSize + PageManager::PAGE_SIZE < MemoryDescriptor::USER_SPACE_SIZE - md.m_DataStartAddress )
-			current->SStack();
-		else
-		{
-			Diagnose::Write("Invalid MM access");
-			current -> PSignal(User::SIGSEGV);
-			if ( current->IsSig() )
-				current->PSig( (pt_context *)&context->eip );
-		}
-	}
-	else
 		Utility::Panic("Page Fault in Kernel Mode.");
+		return;
+	}
+
+	User& u = Kernel::Instance().GetUser();
+	Process* current = u.u_procp;
+	MemoryDescriptor& md = u.u_MemoryDescriptor;
+
+	if( cr2 < MemoryDescriptor::USER_SPACE_SIZE - md.m_StackSize && cr2 >= context->esp - 8
+			&& md.m_DataSize + md.m_StackSize + PageManager::PAGE_SIZE < MemoryDescriptor::USER_SPACE_SIZE - md.m_DataStartAddress )
+		current->SStack();
+	else
+	{
+		Diagnose::Write("Invalid MM access");
+		current -> PSignal(User::SIGSEGV);
+		if ( current->IsSig() )
+			current->PSig( (pt_context *)&context->eip );
+	}
 }
 
 //x87 FPU浮点错误(INT 16)

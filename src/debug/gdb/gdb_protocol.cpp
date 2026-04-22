@@ -850,7 +850,7 @@ static void gdb_send_console_output(const char* text) {
     if (g_client_socket == (Socket)-1 || text == nullptr) return;
 
     const char* hex = "0123456789abcdef";
-    const int max_chunk_bytes = 120;
+    const int max_chunk_bytes = 900;
     char packet[(max_chunk_bytes * 2) + 2];
     int text_pos = 0;
 
@@ -883,6 +883,12 @@ static void gdb_fs_debugger_output_writer(const char* text, void* context) {
 static int is_fs_debugger_monitor_command(const char* cmd) {
     if (cmd == nullptr) return 0;
     if (strncmp(cmd, "qfs:", 4) == 0) return 1;
+    if (strcmp(cmd, "super") == 0) return 1;
+    if (strcmp(cmd, "inodes") == 0) return 1;
+    if (strncmp(cmd, "block ", 6) == 0) return 1;
+    if (strncmp(cmd, "inode ", 6) == 0) return 1;
+    if (strncmp(cmd, "ls ", 3) == 0) return 1;
+    if (strncmp(cmd, "trace ", 6) == 0) return 1;
     if (strncmp(cmd, "dumpblock ", 10) == 0) return 1;
     if (strncmp(cmd, "showinode ", 10) == 0) return 1;
     if (strcmp(cmd, "txtrace") == 0) return 1;
@@ -930,6 +936,7 @@ GDBCommand gdb_parse_command(char* packet) {
         case 'g': return GDB_CMD_READ_REG;
         case 'G': return GDB_CMD_WRITE_REG;
         case 'P': return GDB_CMD_WRITE_SINGLE_REG;
+        case 'D': return GDB_CMD_DETACH;
         case 'm': return GDB_CMD_READ_MEM;
         case 'M': return GDB_CMD_WRITE_MEM;
         case 'X': return GDB_CMD_WRITE_MEM_BINARY; 
@@ -1899,7 +1906,7 @@ void gdb_handle_remove_breakpoint(char* p) {
 void gdb_handle_query(char* p) {
     // qSupported - GDB ÌØÐÔ²éÑ¯
     if (strncmp(p, "qSupported", 10) == 0) {
-        gdb_send_packet((char*)"PacketSize=1000;qRelocInsn+;multiprocess+;vContSupported+;QStartNoAckMode-;timeout-;qXfer:features:read-;qXfer:threads:read-");
+        gdb_send_packet((char*)"PacketSize=1000;qRelocInsn+;multiprocess+;vContSupported+;qRcmd+;QStartNoAckMode-;qXfer:features:read-;qXfer:threads:read-");
         return;
     }
 
@@ -1952,7 +1959,7 @@ void gdb_handle_query(char* p) {
     }
 
     if (strcmp(p, "?") == 0) {
-        gdb_send_packet("S05");  // ·¢ËÍÍ£Ö¹ÐÅºÅ
+        gdb_send_packet((char*)"T05thread:1;");  // ·¢ËÍÍ£Ö¹ÐÅºÅ
     }
 
     // qRcmd - 处理GDB monitor命令
@@ -1999,5 +2006,5 @@ void gdb_handle_query(char* p) {
 // ´¦ÀíÐÅºÅÃüÁî
 void gdb_handle_signal(char* p) {
     // ·¢ËÍÍ£Ö¹ÐÅºÅ (S05 = SIGTRAP)
-    gdb_send_packet((char*)"S05");
+    gdb_send_packet((char*)"T05thread:1;");
 }

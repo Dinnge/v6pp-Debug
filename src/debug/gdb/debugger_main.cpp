@@ -192,6 +192,11 @@ void debugger_main(void) {
                     case GDB_CMD_WRITE_SINGLE_REG:
                         gdb_handle_write_single_register(packet_buffer);
                         break;      
+                    case GDB_CMD_DETACH:
+                        gdb_send_ok();
+                        g_debugger.connected = 0;
+                        gdb_set_client_socket((Socket)-1);
+                        break;
                     case GDB_CMD_READ_MEM:
                         gdb_handle_read_memory(packet_buffer);
                         break;
@@ -352,6 +357,13 @@ void debugger_enter(DebugTrapType trap_type, struct pt_regs* regs, struct pt_con
     debugger_set_target_running(0);
     serial_set_rx_interrupt_enabled(0);
 
+    // Lifecycle debugging reuses the same serial transport from bootloader/sector2.
+    // When we break into the kernel stub, GDB is already attached and waiting for
+    // an immediate stop reply, so bind the serial-backed pseudo-socket before
+    // sending the first packet.
+    gdb_set_client_socket(1);
+    g_debugger.connected = 1;
+
     gdb_registers_invalidate();
     gdb_registers_bind_trap_frame(regs, context);
 
@@ -361,7 +373,7 @@ void debugger_enter(DebugTrapType trap_type, struct pt_regs* regs, struct pt_con
         return;
     }
 
-    gdb_send_packet("S05");
+    gdb_send_packet((char*)"T05thread:1;");
     g_debugger.resume_requested = 0;
 
     debugger_main();

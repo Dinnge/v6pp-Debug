@@ -79,14 +79,23 @@ void fs_debugger_handle_query(const char* query, FSDebugger::OutputWriter writer
         fs_debugger_write("qfs:trace p   - Trace directory traversal\n", writer, context);
         fs_debugger_write("dumpblock n   - Dump raw disk block n\n", writer, context);
         fs_debugger_write("showinode n   - Decode inode n\n", writer, context);
+        fs_debugger_write("super         - View superblock\n", writer, context);
+        fs_debugger_write("inodes        - List all inodes\n", writer, context);
+        fs_debugger_write("block n       - View disk block n\n", writer, context);
+        fs_debugger_write("inode n       - View inode n\n", writer, context);
+        fs_debugger_write("ls path       - List directory\n", writer, context);
+        fs_debugger_write("trace path    - Trace directory traversal\n", writer, context);
         fs_debugger_write("txtrace       - Show FS transaction trace log\n", writer, context);
         fs_debugger_write("=====================================\n", writer, context);
-    } else if (simple_strncmp(query, "qfs:super", 9) == 0) {
+    } else if (simple_strncmp(query, "qfs:super", 9) == 0 || simple_streq(query, "super")) {
         g_fs_debugger.ViewSuperBlock();
-    } else if (simple_strncmp(query, "qfs:inodes", 10) == 0) {
+    } else if (simple_strncmp(query, "qfs:inodes", 10) == 0 || simple_streq(query, "inodes")) {
         g_fs_debugger.ListAllInodes();
     } else if (simple_strncmp(query, "qfs:block ", 10) == 0) {
         int block_no = simple_atoi(query + 10);
+        g_fs_debugger.ViewDiskBlock(block_no);
+    } else if (starts_with(query, "block ")) {
+        int block_no = simple_atoi(query + 6);
         g_fs_debugger.ViewDiskBlock(block_no);
     } else if (starts_with(query, "dumpblock ")) {
         int block_no = simple_atoi(query + 10);
@@ -94,14 +103,23 @@ void fs_debugger_handle_query(const char* query, FSDebugger::OutputWriter writer
     } else if (simple_strncmp(query, "qfs:inode ", 10) == 0) {
         int inode_no = simple_atoi(query + 10);
         g_fs_debugger.ViewInode(inode_no);
+    } else if (starts_with(query, "inode ")) {
+        int inode_no = simple_atoi(query + 6);
+        g_fs_debugger.ViewInode(inode_no);
     } else if (starts_with(query, "showinode ")) {
         int inode_no = simple_atoi(query + 10);
         g_fs_debugger.ViewInode(inode_no);
     } else if (simple_strncmp(query, "qfs:ls ", 7) == 0) {
         const char* path = query + 7;
         g_fs_debugger.ListDirectory(path);
+    } else if (starts_with(query, "ls ")) {
+        const char* path = query + 3;
+        g_fs_debugger.ListDirectory(path);
     } else if (simple_strncmp(query, "qfs:trace ", 10) == 0) {
         const char* path = query + 10;
+        g_fs_debugger.TraceDirectory(path);
+    } else if (starts_with(query, "trace ")) {
+        const char* path = query + 6;
         g_fs_debugger.TraceDirectory(path);
     } else if (simple_streq(query, "txtrace") || simple_streq(query, "qfs:txtrace")) {
         fs_trace_dump(writer, context);

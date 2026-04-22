@@ -1,21 +1,17 @@
-file target/objs/boot/boot_debug.elf
 set pagination off
 set confirm off
+set breakpoint pending on
 set architecture i386
-target remote localhost:1234
 
-define reach_sector2
-  echo Continuing to sector2...\n
-  continue
-  echo Reconnecting to sector2 stub to refresh remote capabilities...\n
-  disconnect
-  target remote localhost:1234
-  echo sector2 stop reached. Current PC and instructions:\n
-  x/5i $pc
-  info registers
-end
+file target/objs/boot/boot_debug.elf
+add-symbol-file target/objs/kernel.exe
 
-document reach_sector2
-Continue from boot.asm stub into sector2, then reconnect GDB so packet
-capabilities are re-negotiated against sector2 stub before further commands.
-end
+target remote 127.0.0.1:1234
+
+echo Connected to the lifecycle stub.\n
+echo Stop sequence:\n
+echo   1. bootloader protected-mode entry\n
+echo   2. sector2 / greatstart entry (kernel symbols auto-loaded)\n
+echo   3. C++ entry checkpoint at main0()\n
+echo   4. file-system checkpoint after LoadSuperBlock()\n
+echo Use 'c' twice to reach C++, then 'c' once more for the FS checkpoint.\n

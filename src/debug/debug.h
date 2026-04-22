@@ -17,6 +17,7 @@ typedef enum {
     GDB_CMD_READ_REG = 'g',
     GDB_CMD_WRITE_REG = 'G',
     GDB_CMD_WRITE_SINGLE_REG = 'P',
+    GDB_CMD_DETACH = 'D',
     GDB_CMD_READ_MEM = 'm',
     GDB_CMD_WRITE_MEM = 'M',
     GDB_CMD_WRITE_MEM_BINARY = 'X',
@@ -57,6 +58,15 @@ void gdb_send_packet(char* data);
 void gdb_send_ok(void);
 void gdb_send_error(int code);
 void debugger_enter(DebugTrapType trap_type, struct pt_regs* regs, struct pt_context* context);
+extern "C" void kernel_debug_checkpoint(void);
+#ifdef EARLY_BOOT_GDB
+extern "C" uint32_t g_kernel_debug_saved_esp;
+extern "C" uint8_t g_kernel_debug_stack[16 * 1024];
+extern "C" void kernel_debug_checkpoint_body(void);
+#define EARLY_BOOT_GDB_CHECKPOINT() kernel_debug_checkpoint()
+#else
+#define EARLY_BOOT_GDB_CHECKPOINT() do { } while (0)
+#endif
 void monitor_execution_mode(void);
 int debugger_is_target_running(void);
 void debugger_set_target_running(int running);

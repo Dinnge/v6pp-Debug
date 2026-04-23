@@ -6,6 +6,7 @@ static int g_reg_context_valid = 0;
 static struct pt_regs* g_bound_regs = 0;
 static struct pt_context* g_bound_context = 0;
 static int g_bound_from_user = 0;
+static int g_bound_has_explicit_kernel_stack = 0;
 
 static const char* hex_chars = "0123456789abcdef";
 
@@ -17,6 +18,7 @@ void gdb_registers_init(void) {
     g_bound_regs = 0;
     g_bound_context = 0;
     g_bound_from_user = 0;
+    g_bound_has_explicit_kernel_stack = 0;
 }
 
 int is_reg_context_valid(void) {
@@ -63,6 +65,7 @@ void gdb_registers_invalidate(void) {
     g_bound_regs = 0;
     g_bound_context = 0;
     g_bound_from_user = 0;
+    g_bound_has_explicit_kernel_stack = 0;
 }
 
 void gdb_registers_bind_trap_frame(struct pt_regs* regs, struct pt_context* context) {
@@ -75,6 +78,12 @@ void gdb_registers_bind_trap_frame(struct pt_regs* regs, struct pt_context* cont
     }
 
     g_bound_from_user = ((context->xcs & USER_MODE) == USER_MODE) ? 1 : 0;
+    g_bound_has_explicit_kernel_stack =
+        (!g_bound_from_user &&
+         regs->pad1 == 0 &&
+         regs->pad2 == 0 &&
+         context->esp >= 0xC0000000 &&
+         context->xss != 0);
 
     g_reg_context.eax = regs->eax;
     g_reg_context.ecx = regs->ecx;
@@ -90,7 +99,7 @@ void gdb_registers_bind_trap_frame(struct pt_regs* regs, struct pt_context* cont
     g_reg_context.ds = regs->xds;
     g_reg_context.es = regs->xes;
 
-    if (g_bound_from_user) {
+    if (g_bound_from_user || g_bound_has_explicit_kernel_stack) {
         g_reg_context.esp = context->esp;
         g_reg_context.ss = context->xss;
     } else {
@@ -122,7 +131,7 @@ void gdb_registers_commit_to_trap_frame(void) {
     g_bound_context->eip = g_reg_context.eip;
     g_bound_context->eflags = g_reg_context.eflags;
     g_bound_context->xcs = g_reg_context.cs;
-    if (g_bound_from_user) {
+    if (g_bound_from_user || g_bound_has_explicit_kernel_stack) {
         g_bound_context->esp = g_reg_context.esp;
         g_bound_context->xss = g_reg_context.ss;
     }

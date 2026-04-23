@@ -55,8 +55,8 @@ int gdb_add_breakpoint(uint32_t addr, GDBBreakpointType type) {
         return 0;  // 已存在
     }
 
-    // 只支持软件断点
-    if (type != GDB_BREAK_SOFTWARE) {
+    // 内核态统一用 INT3 模拟执行断点，兼容 Z0/Z1 两种执行断点请求。
+    if (type != GDB_BREAK_SOFTWARE && type != GDB_BREAK_HARDWARE) {
         return -2;  // 不支持的断点类型
     }
 

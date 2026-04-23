@@ -106,6 +106,17 @@ rsp_emit:
     add byte [rsp_checksum], bl
     jmp serial_send_byte
 
+rsp_emit_cstr:
+.loop:
+    lodsb
+    test al, al
+    jz .done
+    mov bl, al
+    call rsp_emit
+    jmp .loop
+.done:
+    ret
+
 hex_digit:
     add bl, '0'
     cmp bl, '9'
@@ -763,6 +774,14 @@ handle_query:
     add esi, 1
     cmp byte [esi], 'S'
     je .supported
+    cmp byte [esi], 'C'
+    je .current_thread
+    cmp byte [esi], 'A'
+    je .attached
+    cmp byte [esi], 'f'
+    je .thread_first
+    cmp byte [esi], 's'
+    je .thread_next
     cmp byte [esi], 'R'
     je .rcmd
     jmp .bad
@@ -784,22 +803,84 @@ handle_query:
     cmp byte [esi + 8], 'd'
     jne .bad
     call rsp_begin
-    mov bl, 's'
-    call rsp_emit
-    mov bl, 'w'
-    call rsp_emit
-    mov bl, 'b'
-    call rsp_emit
-    mov bl, 'r'
-    call rsp_emit
-    mov bl, 'e'
-    call rsp_emit
-    mov bl, 'a'
-    call rsp_emit
-    mov bl, 'k'
-    call rsp_emit
-    mov bl, '+'
-    call rsp_emit
+    mov esi, gdb_qsupported_features
+    call rsp_emit_cstr
+    jmp rsp_end
+.current_thread:
+    cmp byte [esi + 1], 0
+    jne .bad
+    call rsp_begin
+    mov esi, gdb_qc_reply
+    call rsp_emit_cstr
+    jmp rsp_end
+.attached:
+    cmp byte [esi + 1], 't'
+    jne .bad
+    cmp byte [esi + 2], 't'
+    jne .bad
+    cmp byte [esi + 3], 'a'
+    jne .bad
+    cmp byte [esi + 4], 'c'
+    jne .bad
+    cmp byte [esi + 5], 'h'
+    jne .bad
+    cmp byte [esi + 6], 'e'
+    jne .bad
+    cmp byte [esi + 7], 'd'
+    jne .bad
+    call rsp_begin
+    mov esi, gdb_attached_reply
+    call rsp_emit_cstr
+    jmp rsp_end
+.thread_first:
+    cmp byte [esi + 1], 'T'
+    jne .bad
+    cmp byte [esi + 2], 'h'
+    jne .bad
+    cmp byte [esi + 3], 'r'
+    jne .bad
+    cmp byte [esi + 4], 'e'
+    jne .bad
+    cmp byte [esi + 5], 'a'
+    jne .bad
+    cmp byte [esi + 6], 'd'
+    jne .bad
+    cmp byte [esi + 7], 'I'
+    jne .bad
+    cmp byte [esi + 8], 'n'
+    jne .bad
+    cmp byte [esi + 9], 'f'
+    jne .bad
+    cmp byte [esi + 10], 'o'
+    jne .bad
+    call rsp_begin
+    mov esi, gdb_thread_first_reply
+    call rsp_emit_cstr
+    jmp rsp_end
+.thread_next:
+    cmp byte [esi + 1], 'T'
+    jne .bad
+    cmp byte [esi + 2], 'h'
+    jne .bad
+    cmp byte [esi + 3], 'r'
+    jne .bad
+    cmp byte [esi + 4], 'e'
+    jne .bad
+    cmp byte [esi + 5], 'a'
+    jne .bad
+    cmp byte [esi + 6], 'd'
+    jne .bad
+    cmp byte [esi + 7], 'I'
+    jne .bad
+    cmp byte [esi + 8], 'n'
+    jne .bad
+    cmp byte [esi + 9], 'f'
+    jne .bad
+    cmp byte [esi + 10], 'o'
+    jne .bad
+    call rsp_begin
+    mov esi, gdb_thread_next_reply
+    call rsp_emit_cstr
     jmp rsp_end
 .rcmd:
     cmp byte [esi + 1], 'c'
@@ -828,7 +909,10 @@ handle_set_sw_break:
     jne .bad
     lodsb
     cmp al, '0'
+    je .type_ok
+    cmp al, '1'
     jne .bad
+.type_ok:
     lodsb
     cmp al, ','
     jne .bad
@@ -879,7 +963,10 @@ handle_clear_sw_break:
     jne .bad
     lodsb
     cmp al, '0'
+    je .type_ok
+    cmp al, '1'
     jne .bad
+.type_ok:
     lodsb
     cmp al, ','
     jne .bad
@@ -1045,6 +1132,81 @@ handle_step_packet:
     mov [reg_shadow + 32], eax
     ret
 
+arm_temp_breakpoint:
+    call clear_temp_breakpoint
+    mov edi, eax
+    mov dl, [edi]
+    mov [tmp_bp_addr], edi
+    mov [tmp_bp_orig], dl
+    mov byte [edi], 0xCC
+    mov byte [tmp_bp_active], 1
+    ret
+
+handle_range_step_packet:
+    mov esi, rsp_buf
+    add esi, 7
+    mov dl, ','
+    call parse_hex_u32
+    cmp bl, ','
+    jne .bad
+    mov edx, eax
+    mov dl, ':'
+    call parse_hex_u32
+    cmp bl, 0
+    je .parsed
+    cmp bl, ':'
+    jne .bad
+.parsed:
+    mov ecx, eax
+    and dword [reg_shadow + 36], ~EFLAGS_TF
+    call clear_temp_breakpoint
+    mov eax, [reg_shadow + 32]
+    cmp eax, edx
+    jb .single_step
+    cmp eax, ecx
+    jae .single_step
+
+    mov bl, [eax]
+    cmp bl, 0xE8
+    je .continue_to_end
+    cmp bl, 0x9A
+    je .continue_to_end
+    cmp bl, 0xFF
+    jne .compute_target
+    mov bl, [eax + 1]
+    shr bl, 3
+    and bl, 0x07
+    cmp bl, 2
+    je .continue_to_end
+    cmp bl, 3
+    je .continue_to_end
+
+.compute_target:
+    mov eax, [reg_shadow + 32]
+    call compute_step_target
+    cmp eax, edx
+    jb .step_now
+    cmp eax, ecx
+    jae .step_now
+
+.continue_to_end:
+    mov eax, ecx
+    call arm_temp_breakpoint
+    mov eax, 1
+    ret
+
+.single_step:
+    mov eax, [reg_shadow + 32]
+    call compute_step_target
+
+.step_now:
+    mov [reg_shadow + 32], eax
+    mov eax, 2
+    ret
+.bad:
+    xor eax, eax
+    ret
+
 handle_v_packet:
     lodsb
     cmp al, 'v'
@@ -1087,7 +1249,11 @@ handle_v_packet:
     call rsp_emit
     mov bl, ';'
     call rsp_emit
-    mov bl, 'n'
+    mov bl, 'S'
+    call rsp_emit
+    mov bl, ';'
+    call rsp_emit
+    mov bl, 'r'
     call rsp_emit
     jmp rsp_end
 .run:
@@ -1096,6 +1262,8 @@ handle_v_packet:
     je .step
     cmp al, 'S'
     je .step
+    cmp al, 'r'
+    je .range
     cmp al, 'n'
     je .next
     cmp al, 'N'
@@ -1112,6 +1280,9 @@ handle_v_packet:
 .next:
     call handle_step_over_packet
     mov eax, 2
+    ret
+.range:
+    call handle_range_step_packet
     ret
 .cont:
     call handle_continue_packet
@@ -1217,6 +1388,13 @@ gdb_debug_break:
     popad
     popfd
     ret
+
+section .rodata
+gdb_qsupported_features db "PacketSize=1000;qRelocInsn+;multiprocess+;vContSupported+;qRcmd+;QStartNoAckMode-;swbreak+;hwbreak+", 0
+gdb_qc_reply db "QC1", 0
+gdb_attached_reply db "1", 0
+gdb_thread_first_reply db "m1", 0
+gdb_thread_next_reply db "l", 0
 
 section .bss
 rsp_buf        resb 256

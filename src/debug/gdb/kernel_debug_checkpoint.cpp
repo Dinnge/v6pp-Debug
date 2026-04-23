@@ -61,6 +61,8 @@ extern "C" __attribute__((naked)) void kernel_debug_checkpoint(void) {
         "addl $8, %esp\n\t"
 
         "movl g_kernel_debug_saved_esp, %edx\n\t"
+        "movl 52(%esp), %ecx\n\t"
+        "movl %ecx, -4(%edx)\n\t"
         "movl 44(%esp), %eax\n\t"
         "movl %eax, (%edx)\n\t"
 
@@ -68,9 +70,6 @@ extern "C" __attribute__((naked)) void kernel_debug_checkpoint(void) {
         "movw %ax, %ds\n\t"
         "movl 12(%esp), %eax\n\t"
         "movw %ax, %es\n\t"
-        "movl 52(%esp), %eax\n\t"
-        "pushl %eax\n\t"
-        "popfl\n\t"
 
         "movl 16(%esp), %ebx\n\t"
         "movl 20(%esp), %ecx\n\t"
@@ -81,6 +80,8 @@ extern "C" __attribute__((naked)) void kernel_debug_checkpoint(void) {
         "movl 40(%esp), %eax\n\t"
 
         "movl g_kernel_debug_saved_esp, %esp\n\t"
+        "subl $4, %esp\n\t"
+        "popfl\n\t"
         "ret\n\t");
 }
 

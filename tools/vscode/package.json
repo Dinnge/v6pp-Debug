@@ -1,0 +1,119 @@
+{
+  "name": "v6pp-debugger-ui",
+  "displayName": "V6++ Debugger UI",
+  "description": "VS Code views for the V6++ lifecycle debugger and file-system introspection commands.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:v6ppDebugger.registers",
+    "onView:v6ppDebugger.backtrace",
+    "onView:v6ppDebugger.processes",
+    "onView:v6ppDebugger.filesystem",
+    "onView:v6ppDebugger.fsTrace",
+    "onCommand:v6ppDebugger.refresh",
+    "onCommand:v6ppDebugger.showMemory",
+    "onCommand:v6ppDebugger.showInode",
+    "onCommand:v6ppDebugger.showBlock",
+    "onCommand:v6ppDebugger.showSnapshot",
+    "onCommand:v6ppDebugger.openLaunchExample"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "v6ppDebugger",
+          "title": "V6++",
+          "icon": "resources/debug.svg"
+        }
+      ]
+    },
+    "views": {
+      "v6ppDebugger": [
+        {
+          "id": "v6ppDebugger.registers",
+          "name": "Registers"
+        },
+        {
+          "id": "v6ppDebugger.backtrace",
+          "name": "Backtrace"
+        },
+        {
+          "id": "v6ppDebugger.processes",
+          "name": "Processes"
+        },
+        {
+          "id": "v6ppDebugger.filesystem",
+          "name": "Filesystem"
+        },
+        {
+          "id": "v6ppDebugger.fsTrace",
+          "name": "FS Trace"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "v6ppDebugger.refresh",
+        "title": "V6++: Refresh Views"
+      },
+      {
+        "command": "v6ppDebugger.showMemory",
+        "title": "V6++: Inspect Memory"
+      },
+      {
+        "command": "v6ppDebugger.showInode",
+        "title": "V6++: Inspect Inode"
+      },
+      {
+        "command": "v6ppDebugger.showBlock",
+        "title": "V6++: Inspect Block"
+      },
+      {
+        "command": "v6ppDebugger.showSnapshot",
+        "title": "V6++: Open Snapshot JSON"
+      },
+      {
+        "command": "v6ppDebugger.openLaunchExample",
+        "title": "V6++: Open Launch Example"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "v6ppDebugger.refresh",
+          "when": "view == v6ppDebugger.registers",
+          "group": "navigation"
+        },
+        {
+          "command": "v6ppDebugger.refresh",
+          "when": "view == v6ppDebugger.backtrace",
+          "group": "navigation"
+        },
+        {
+          "command": "v6ppDebugger.refresh",
+          "when": "view == v6ppDebugger.processes",
+          "group": "navigation"
+        },
+        {
+          "command": "v6ppDebugger.refresh",
+          "when": "view == v6ppDebugger.filesystem",
+          "group": "navigation"
+        },
+        {
+          "command": "v6ppDebugger.refresh",
+          "when": "view == v6ppDebugger.fsTrace",
+          "group": "navigation"
+        }
+      ]
+    }
+  }
+}

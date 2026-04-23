@@ -472,6 +472,7 @@
 #include "../../include/Video.h"
 #include "../debug.h"
 #include "../fs/fs_debugger_integration.h"
+#include "../json/debug_json.h"
 
 // Íâ²¿ÒýÓÃµ÷ÊÔÆ÷×´Ì¬
 extern "C" DebuggerState g_debugger;
@@ -876,6 +877,11 @@ static void gdb_send_console_output(const char* text) {
 }
 
 static void gdb_fs_debugger_output_writer(const char* text, void* context) {
+    (void)context;
+    gdb_send_console_output(text);
+}
+
+static void gdb_json_output_writer(const char* text, void* context) {
     (void)context;
     gdb_send_console_output(text);
 }
@@ -1906,7 +1912,7 @@ void gdb_handle_remove_breakpoint(char* p) {
 void gdb_handle_query(char* p) {
     // qSupported - GDB ÌØÐÔ²éÑ¯
     if (strncmp(p, "qSupported", 10) == 0) {
-        gdb_send_packet((char*)"PacketSize=1000;qRelocInsn+;multiprocess+;vContSupported+;qRcmd+;QStartNoAckMode-;qXfer:features:read-;qXfer:threads:read-");
+        gdb_send_packet((char*)"PacketSize=1000;qRelocInsn+;multiprocess+;vContSupported+;qRcmd+;QStartNoAckMode-;swbreak+;hwbreak+;qXfer:features:read-;qXfer:threads:read-;qXfer:v6pp-json:read+");
         return;
     }
 
@@ -1958,8 +1964,56 @@ void gdb_handle_query(char* p) {
         return;
     }
 
+    if (strncmp(p, "qXfer:", 6) == 0) {
+        char* object = p + 6;
+        char* op_sep = gdb_strchr(object, ':');
+        if (op_sep) {
+            *op_sep = '\0';
+            char* operation = op_sep + 1;
+            char* annex_sep = gdb_strchr(operation, ':');
+            if (annex_sep) {
+                *annex_sep = '\0';
+                char* annex = annex_sep + 1;
+                char* offset_sep = gdb_strchr(annex, ':');
+                if (offset_sep) {
+                    *offset_sep = '\0';
+                    char* offset_str = offset_sep + 1;
+                    char* len_str = gdb_strchr(offset_str, ',');
+                    if (len_str) {
+                        *len_str = '\0';
+                        uint32_t offset = hex_str_to_uint(offset_str);
+                        uint32_t length = hex_str_to_uint(len_str + 1);
+                        char response[DEBUG_BUFFER_SIZE];
+
+                        if (strcmp(operation, "read") == 0) {
+                            if (debug_json_handle_qxfer(object,
+                                                        annex,
+                                                        offset,
+                                                        length,
+                                                        response,
+                                                        sizeof(response)) > 0) {
+                                *len_str = ',';
+                                *offset_sep = ':';
+                                *annex_sep = ':';
+                                *op_sep = ':';
+                                gdb_send_packet(response);
+                                return;
+                            }
+                        }
+
+                        *len_str = ',';
+                    }
+                    *offset_sep = ':';
+                }
+                *annex_sep = ':';
+            }
+            *op_sep = ':';
+        }
+    }
+
     if (strcmp(p, "?") == 0) {
         gdb_send_packet((char*)"T05thread:1;");  // ·¢ËÍÍ£Ö¹ÐÅºÅ
+        return;
     }
 
     // qRcmd - 处理GDB monitor命令
@@ -1983,6 +2037,12 @@ void gdb_handle_query(char* p) {
         // 处理文件系统调试命令 (qfs:* / aliases)
         if (is_fs_debugger_monitor_command(cmd)) {
             fs_debugger_handle_query(cmd, gdb_fs_debugger_output_writer, nullptr);
+            gdb_send_ok();
+            return;
+        }
+
+        if (debug_json_is_monitor_command(cmd)) {
+            debug_json_handle_monitor_command(cmd, gdb_json_output_writer, nullptr);
             gdb_send_ok();
             return;
         }

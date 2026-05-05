@@ -7,17 +7,25 @@ BP_MAX    equ 16
 EFLAGS_TF equ 0x100
 
 %ifdef EARLY_BOOT_GDB
+extern kernel_debug_breakpoint_dispatch
+extern kernel_debug_debug_dispatch
+extern g_kernel_debug_saved_esp
+extern g_kernel_debug_stack
+
 GDB_PORT        equ 0x3F8
 GDB_BAUD_LATCH  equ 0x3F9
 GDB_LINE_CTRL   equ 0x3FB
 GDB_MODEM_CTRL  equ 0x3FC
 GDB_LINE_STATUS equ 0x3FD
+EARLY_IDT_CODE_SEL equ 0x18
+EARLY_IDT_FLAGS    equ 0x8F
 
 section .text
 
 greatstart:
     call serial_init
     call gdb_state_init
+    call early_idt_init
     call gdb_debug_break
     jmp kernelBridge
     ud2
@@ -47,6 +55,100 @@ gdb_state_init:
     mov ecx, (tmp_bp_orig + 1) - rsp_buf
     rep stosb
     ret
+
+early_idt_init:
+    mov eax, early_debug_handler
+    mov edi, early_idt + (1 * 8)
+    call early_idt_set_gate
+    mov eax, early_breakpoint_handler
+    mov edi, early_idt + (3 * 8)
+    call early_idt_set_gate
+    mov eax, early_idt
+    sub eax, 0xC0000000
+    mov [early_idtr + 2], eax
+    lidt [early_idtr]
+    ret
+
+early_idt_set_gate:
+    mov word [edi], ax
+    mov word [edi + 2], EARLY_IDT_CODE_SEL
+    mov byte [edi + 4], 0
+    mov byte [edi + 5], EARLY_IDT_FLAGS
+    shr eax, 16
+    mov word [edi + 6], ax
+    ret
+
+%macro EARLY_GDB_TRAP_HANDLER 2
+%1:
+    mov [g_kernel_debug_saved_esp], esp
+    mov esp, g_kernel_debug_stack + 16384
+    and esp, 0xfffffff0
+    sub esp, 64
+
+    mov [esp + 40], eax
+    mov [esp + 36], ebp
+    mov [esp + 32], edi
+    mov [esp + 28], esi
+    mov [esp + 24], edx
+    mov [esp + 20], ecx
+    mov [esp + 16], ebx
+    mov dword [esp + 0], 0
+    mov dword [esp + 4], 0
+
+    xor eax, eax
+    mov ax, ds
+    mov [esp + 8], eax
+    xor eax, eax
+    mov ax, es
+    mov [esp + 12], eax
+
+    mov edx, [g_kernel_debug_saved_esp]
+    mov eax, [edx]
+    mov [esp + 44], eax
+    mov eax, [edx + 4]
+    mov [esp + 48], eax
+    mov eax, [edx + 8]
+    mov [esp + 52], eax
+    lea eax, [edx + 12]
+    mov [esp + 56], eax
+    xor eax, eax
+    mov ax, ss
+    mov [esp + 60], eax
+
+    lea edx, [esp + 44]
+    mov eax, esp
+    push edx
+    push eax
+    call %2
+    add esp, 8
+
+    mov edx, [g_kernel_debug_saved_esp]
+    mov eax, [esp + 44]
+    mov [edx], eax
+    mov eax, [esp + 48]
+    mov [edx + 4], eax
+    mov eax, [esp + 52]
+    mov [edx + 8], eax
+
+    mov eax, [esp + 8]
+    mov ds, ax
+    mov eax, [esp + 12]
+    mov es, ax
+
+    mov ebx, [esp + 16]
+    mov ecx, [esp + 20]
+    mov edx, [esp + 24]
+    mov esi, [esp + 28]
+    mov edi, [esp + 32]
+    mov ebp, [esp + 36]
+    mov eax, [esp + 40]
+
+    mov esp, [g_kernel_debug_saved_esp]
+    iret
+%endmacro
+
+EARLY_GDB_TRAP_HANDLER early_debug_handler, kernel_debug_debug_dispatch
+EARLY_GDB_TRAP_HANDLER early_breakpoint_handler, kernel_debug_breakpoint_dispatch
 
 serial_send_byte:
     mov dx, GDB_LINE_STATUS
@@ -90,6 +192,9 @@ rsp_recv_packet:
 
 .done:
     mov byte [edi], 0
+    mov eax, edi
+    sub eax, rsp_buf
+    mov [rsp_packet_len], eax
     call serial_recv_byte
     call serial_recv_byte
     mov bl, '+'
@@ -766,6 +871,44 @@ handle_write_mem:
 .bad:
     jmp send_empty
 
+handle_write_mem_binary:
+    lodsb
+    cmp al, 'X'
+    jne .bad
+    mov dl, ','
+    call parse_hex_u32
+    cmp bl, ','
+    jne .bad
+    mov edi, eax
+    mov dl, ':'
+    call parse_hex_u32
+    cmp bl, ':'
+    jne .bad
+    mov ecx, eax
+    mov edx, [rsp_packet_len]
+    add edx, rsp_buf
+.loop:
+    test ecx, ecx
+    jz .ok
+    cmp esi, edx
+    jae .bad
+    lodsb
+    cmp al, '}'
+    jne .store
+    cmp esi, edx
+    jae .bad
+    lodsb
+    xor al, 0x20
+.store:
+    mov [edi], al
+    inc edi
+    dec ecx
+    jmp .loop
+.ok:
+    jmp send_ok
+.bad:
+    jmp send_empty
+
 handle_query:
     lodsb
     cmp al, 'q'
@@ -1321,6 +1464,8 @@ gdb_debug_break:
     je .read_mem
     cmp al, 'M'
     je .write_mem
+    cmp al, 'X'
+    je .write_mem_binary
     cmp al, 'P'
     je .set_reg
     cmp al, 'Z'
@@ -1352,6 +1497,9 @@ gdb_debug_break:
     jmp .loop
 .write_mem:
     call handle_write_mem
+    jmp .loop
+.write_mem_binary:
+    call handle_write_mem_binary
     jmp .loop
 .set_reg:
     call write_single_reg32
@@ -1396,9 +1544,19 @@ gdb_attached_reply db "1", 0
 gdb_thread_first_reply db "m1", 0
 gdb_thread_next_reply db "l", 0
 
+align 8
+early_idt:
+    times 256 dq 0
+
+early_idtr:
+    dw (256 * 8) - 1
+    dd 0
+
 section .bss
 rsp_buf        resb 256
 rsp_checksum   resb 1
+alignb 4
+rsp_packet_len resd 1
 alignb 4
 reg_shadow     resd 16
 bp_used        resb BP_MAX

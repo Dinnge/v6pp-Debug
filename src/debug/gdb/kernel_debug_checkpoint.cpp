@@ -11,6 +11,14 @@ extern "C" void kernel_debug_checkpoint_dispatch(struct pt_regs* regs, struct pt
     debugger_enter(DEBUG_TRAP_UNKNOWN, regs, context);
 }
 
+extern "C" void kernel_debug_breakpoint_dispatch(struct pt_regs* regs, struct pt_context* context) {
+    debugger_enter(DEBUG_TRAP_BREAKPOINT, regs, context);
+}
+
+extern "C" void kernel_debug_debug_dispatch(struct pt_regs* regs, struct pt_context* context) {
+    debugger_enter(DEBUG_TRAP_DEBUG, regs, context);
+}
+
 extern "C" void kernel_debug_checkpoint_body(void) {
 }
 
@@ -91,6 +99,16 @@ extern "C" void kernel_debug_checkpoint(void) {
 }
 
 extern "C" void kernel_debug_checkpoint_body(void) {
+}
+
+extern "C" void kernel_debug_breakpoint_dispatch(struct pt_regs* regs, struct pt_context* context) {
+    (void)regs;
+    (void)context;
+}
+
+extern "C" void kernel_debug_debug_dispatch(struct pt_regs* regs, struct pt_context* context) {
+    (void)regs;
+    (void)context;
 }
 
 #endif

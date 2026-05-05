@@ -1327,33 +1327,11 @@ void gdb_handle_write_single_register(char* p) {
 
 // °²È«µÄÄÚ´æ¶ÁÈ¡º¯Êý
 int gdb_safe_read_memory(uint32_t addr, char* buffer, uint32_t len) {
-    // °²È«¼ì²é1£ºÖ»ÔÊÐíÄÚºË¿Õ¼ä·ÃÎÊ
-    // if (addr < 0xC0000000) {
-    //     Diagnose::Write("[GDB] ÄÚ´æ¶ÁÈ¡Ê§°Ü£º¾Ü¾øÓÃ»§¿Õ¼ä·ÃÎÊ 0x%08x\n", addr);
-    //     return -1;
-    // }
-    
-    // °²È«¼ì²é2£º±ß½ç¼ì²é
     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
-        Diagnose::Write("[GDB] ÄÚ´æ¶ÁÈ¡Ê§°Ü£ºÎÞÐ§³¤¶È %u\n", len);
         return -1;
     }
-    
-    // °²È«¼ì²é3£ºµØÖ··¶Î§¼ì²é
-    if (addr >= 0xc0400000) {  // ¼ì²éÒç³ö
-        Diagnose::Write("[GDB] ÄÚ´æ¶ÁÈ¡Ê§°Ü£ºµØÖ·Òç³ö 0x%08x + %u\n", addr, len);
-        return -1;
-    }
-    
-    Diagnose::Write("[GDB] °²È«¶ÁÈ¡: µØÖ·=0x%08x, ³¤¶È=%u\n", addr, len);
-    
-    // Ö±½ÓÄÚ´æ¶ÁÈ¡
-    for (uint32_t i = 0; i < len; i++) {
-        char* src = (char*)(addr + i);
-        buffer[i] = *src;
-    }
-    
-    return 0;
+
+    return gdb_read_memory(addr, buffer, (int)len) < 0 ? -1 : 0;
 }
 
 void gdb_handle_read_memory(char* packet) {
@@ -1382,12 +1360,6 @@ void gdb_handle_read_memory(char* packet) {
     // ÏÞÖÆ³¤¶È
     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
         len = DEBUG_BUFFER_SIZE;
-    }
-    
-    // °²È«¼ì²é
-    if (host_addr >= 0xc0400000) {
-        gdb_send_packet("E00");
-        return;
     }
     
     // ÄÚ´æ¶ÁÈ¡ - Ê¹ÓÃÕýÈ·µÄhost_addr
@@ -1482,33 +1454,15 @@ void gdb_handle_read_memory(char* packet) {
 // }
 
 int gdb_safe_write_memory(uint32_t addr, const char* data, uint32_t len) {
-    // °²È«¼ì²é1£ºÖ»ÔÊÐíÄÚºË¿Õ¼ä·ÃÎÊ
-    // if (addr < 0xC0000000) {
-    //     return -1;
-    // }
-    
-    // °²È«¼ì²é2£º±ß½ç¼ì²é
     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
         return -1;
     }
-    
-    if (addr >= 0xc0400000) {  // ¼ì²éÒç³ö
-        Diagnose::Write("[GDB] ÄÚ´æ¶ÁÈ¡Ê§°Ü£ºµØÖ·Òç³ö 0x%08x + %u\n", addr, len);
+
+    if (addr + len < addr) {
         return -1;
     }
 
-    // °²È«¼ì²é3£ºµØÖ··¶Î§¼ì²é
-    if (addr + len < addr) {  // ¼ì²éÒç³ö
-        return -1;
-    }
-    
-    // Ö±½ÓÄÚ´æÐ´Èë
-    for (uint32_t i = 0; i < len; i++) {
-        char* dest = (char*)(addr + i);
-        *dest = data[i];
-    }
-    
-    return 0;
+    return gdb_write_memory(addr, data, (int)len) < 0 ? -1 : 0;
 }
 
 // void gdb_handle_write_memory(char* packet) {
@@ -1643,12 +1597,6 @@ void gdb_handle_write_memory(char* packet) {
         len = DEBUG_BUFFER_SIZE;
     }
     
-    // °²È«¼ì²é
-    if (host_addr < 0xC0000000) {
-        gdb_send_packet("E00");
-        return;
-    }
-    
     // ½âÎöÊ®Áù½øÖÆÊý¾Ý
     static char data_buffer[DEBUG_BUFFER_SIZE];
     for (uint32_t i = 0; i < len; i++) {
@@ -1709,11 +1657,6 @@ void gdb_handle_binary_write_memory(char* packet) {
     // ÏÞÖÆ³¤¶È
     if (len == 0 || len > DEBUG_BUFFER_SIZE) {
         gdb_send_packet("E02");  // ³¤¶È´íÎó
-        return;
-    }
-
-    if (host_addr < 0xC0000000) {
-        gdb_send_packet("E01");
         return;
     }
 

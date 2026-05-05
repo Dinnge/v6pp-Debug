@@ -7,6 +7,7 @@
 #include "../../include/ProcessManager.h"
 #include "../../include/DeviceManager.h"
 #include "../../include/FileSystem.h"
+#include "../../include/FileManager.h"
 #include "../../include/ATADriver.h"
 #include "../../include/IOPort.h"
 #include "../../include/User.h"
@@ -20,6 +21,8 @@ const int kJsonDocumentMax = 32768;
 const int kTraceLineMax = 128;
 const int kTraceLineCountMax = 80;
 const int kBacktraceFrameMax = 16;
+const int kPathMax = 256;
+const int kFilePreviewMax = 1024;
 
 struct JsonBuilder {
     char* buffer;
@@ -36,6 +39,12 @@ struct TraceCapture {
 struct BacktraceFrame {
     uint32_t eip;
     uint32_t ebp;
+};
+
+struct DiskPathLookupResult {
+    DiskInode inode;
+    int inodeNo;
+    char path[kPathMax];
 };
 
 static void jb_init(JsonBuilder* jb, char* buffer, int size) {
@@ -357,6 +366,285 @@ static int filesystem_ready() {
     return g_FileSystem.m_Mount[0].m_spb != 0;
 }
 
+static void normalize_path(const char* raw_path, char* out, int out_size) {
+    if (out == 0 || out_size <= 0) {
+        return;
+    }
+
+    int pos = 0;
+    out[pos++] = '/';
+
+    if (raw_path == 0 || raw_path[0] == '\0') {
+        out[pos] = '\0';
+        return;
+    }
+
+    const char* src = raw_path;
+    while (*src == '/') {
+        src++;
+    }
+
+    int last_was_slash = 1;
+    while (*src != '\0' && pos < out_size - 1) {
+        char ch = *src++;
+        if (ch == '\\') {
+            ch = '/';
+        }
+        if (ch == '/') {
+            if (last_was_slash) {
+                continue;
+            }
+            last_was_slash = 1;
+        } else {
+            last_was_slash = 0;
+        }
+        out[pos++] = ch;
+    }
+
+    while (pos > 1 && out[pos - 1] == '/') {
+        pos--;
+    }
+    out[pos] = '\0';
+}
+
+static void copy_directory_entry_name(const char* entry_name, char* out, int out_size) {
+    if (out == 0 || out_size <= 0) {
+        return;
+    }
+
+    int end = DirectoryEntry::DIRSIZ;
+    while (end > 0 && entry_name[end - 1] == '\0') {
+        end--;
+    }
+
+    int copy_len = end;
+    if (copy_len > out_size - 1) {
+        copy_len = out_size - 1;
+    }
+
+    for (int i = 0; i < copy_len; i++) {
+        out[i] = entry_name[i];
+    }
+    out[copy_len] = '\0';
+}
+
+static int directory_entry_name_equals(const char* entry_name, const char* component) {
+    if (entry_name == 0 || component == 0) {
+        return 0;
+    }
+
+    for (int i = 0; i < DirectoryEntry::DIRSIZ; i++) {
+        char lhs = entry_name[i];
+        char rhs = component[i];
+
+        if (rhs == '\0') {
+            while (i < DirectoryEntry::DIRSIZ) {
+                if (entry_name[i] != '\0') {
+                    return 0;
+                }
+                i++;
+            }
+            return 1;
+        }
+
+        if (lhs != rhs) {
+            return 0;
+        }
+    }
+
+    return component[DirectoryEntry::DIRSIZ] == '\0';
+}
+
+static int extract_path_component(const char*& path, char* component, int component_size) {
+    if (path == 0 || component == 0 || component_size <= 0) {
+        return 0;
+    }
+
+    while (*path == '/') {
+        path++;
+    }
+
+    if (*path == '\0') {
+        component[0] = '\0';
+        return 0;
+    }
+
+    int len = 0;
+    while (*path != '\0' && *path != '/') {
+        if (len < component_size - 1) {
+            component[len++] = *path;
+        }
+        path++;
+    }
+    component[len] = '\0';
+    return 1;
+}
+
+static int map_disk_inode_block(const DiskInode& inode, int lbn) {
+    if (lbn < 0 || lbn >= Inode::HUGE_FILE_BLOCK) {
+        return 0;
+    }
+
+    if (lbn < Inode::SMALL_FILE_BLOCK) {
+        return inode.d_addr[lbn];
+    }
+
+    unsigned char first_block[Inode::BLOCK_SIZE];
+    unsigned char second_block[Inode::BLOCK_SIZE];
+    int index = 0;
+
+    if (lbn < Inode::LARGE_FILE_BLOCK) {
+        index = (lbn - Inode::SMALL_FILE_BLOCK) / Inode::ADDRESS_PER_INDEX_BLOCK + 6;
+    } else {
+        index = (lbn - Inode::LARGE_FILE_BLOCK) /
+                (Inode::ADDRESS_PER_INDEX_BLOCK * Inode::ADDRESS_PER_INDEX_BLOCK) + 8;
+    }
+
+    int first_sector = inode.d_addr[index];
+    if (first_sector == 0 || !read_raw_sector(first_sector, first_block)) {
+        return 0;
+    }
+
+    int* first_table = (int*)first_block;
+    if (index >= 8) {
+        int first_index = ((lbn - Inode::LARGE_FILE_BLOCK) / Inode::ADDRESS_PER_INDEX_BLOCK) %
+                          Inode::ADDRESS_PER_INDEX_BLOCK;
+        int second_sector = first_table[first_index];
+        if (second_sector == 0 || !read_raw_sector(second_sector, second_block)) {
+            return 0;
+        }
+        first_table = (int*)second_block;
+    }
+
+    int leaf_index = 0;
+    if (lbn < Inode::LARGE_FILE_BLOCK) {
+        leaf_index = (lbn - Inode::SMALL_FILE_BLOCK) % Inode::ADDRESS_PER_INDEX_BLOCK;
+    } else {
+        leaf_index = (lbn - Inode::LARGE_FILE_BLOCK) % Inode::ADDRESS_PER_INDEX_BLOCK;
+    }
+
+    return first_table[leaf_index];
+}
+
+static int lookup_disk_path(const char* raw_path, DiskPathLookupResult* result) {
+    if (result == 0 || !filesystem_ready()) {
+        return 0;
+    }
+
+    normalize_path(raw_path, result->path, sizeof(result->path));
+
+    int current_inode_no = FileSystem::ROOTINO;
+    DiskInode current_inode;
+    if (!read_disk_inode(current_inode_no, &current_inode)) {
+        return 0;
+    }
+
+    const char* cursor = result->path;
+    char component[DirectoryEntry::DIRSIZ + 1];
+    while (extract_path_component(cursor, component, sizeof(component))) {
+        if ((current_inode.d_mode & Inode::IFDIR) == 0) {
+            return 0;
+        }
+
+        const int entry_size = (int)sizeof(DirectoryEntry);
+        const int total_entries = current_inode.d_size / entry_size;
+        int found = 0;
+
+        for (int entry_index = 0; entry_index < total_entries && !found; entry_index++) {
+            int offset = entry_index * entry_size;
+            int lbn = offset / Inode::BLOCK_SIZE;
+            int block_offset = offset % Inode::BLOCK_SIZE;
+            int sector = map_disk_inode_block(current_inode, lbn);
+            unsigned char block[Inode::BLOCK_SIZE];
+            if (sector == 0 || !read_raw_sector(sector, block)) {
+                return 0;
+            }
+
+            DirectoryEntry* entry = (DirectoryEntry*)(block + block_offset);
+            if (entry->m_ino == 0 || !directory_entry_name_equals(entry->m_name, component)) {
+                continue;
+            }
+
+            current_inode_no = entry->m_ino;
+            if (!read_disk_inode(current_inode_no, &current_inode)) {
+                return 0;
+            }
+            found = 1;
+        }
+
+        if (!found) {
+            return 0;
+        }
+    }
+
+    result->inodeNo = current_inode_no;
+    result->inode = current_inode;
+    return 1;
+}
+
+static int read_inode_preview_bytes(const DiskInode& inode,
+                                    unsigned char* buffer,
+                                    int buffer_size,
+                                    int* out_len) {
+    if (buffer == 0 || buffer_size <= 0) {
+        return 0;
+    }
+
+    int preview_len = inode.d_size;
+    if (preview_len > buffer_size) {
+        preview_len = buffer_size;
+    }
+    if (preview_len < 0) {
+        preview_len = 0;
+    }
+
+    int copied = 0;
+    while (copied < preview_len) {
+        int lbn = copied / Inode::BLOCK_SIZE;
+        int sector = map_disk_inode_block(inode, lbn);
+        unsigned char block[Inode::BLOCK_SIZE];
+        if (sector == 0 || !read_raw_sector(sector, block)) {
+            return 0;
+        }
+
+        int block_offset = copied % Inode::BLOCK_SIZE;
+        int chunk = Inode::BLOCK_SIZE - block_offset;
+        int left = preview_len - copied;
+        if (chunk > left) {
+            chunk = left;
+        }
+
+        for (int i = 0; i < chunk; i++) {
+            buffer[copied + i] = block[block_offset + i];
+        }
+        copied += chunk;
+    }
+
+    if (out_len != 0) {
+        *out_len = preview_len;
+    }
+    return 1;
+}
+
+static void append_ascii_preview(JsonBuilder* jb, const unsigned char* data, int len) {
+    char preview[kFilePreviewMax + 1];
+    int copy_len = len;
+    if (copy_len > kFilePreviewMax) {
+        copy_len = kFilePreviewMax;
+    }
+
+    for (int i = 0; i < copy_len; i++) {
+        unsigned char ch = data[i];
+        if (ch == '\n' || ch == '\r' || ch == '\t' || (ch >= 32 && ch <= 126)) {
+            preview[i] = (char)ch;
+        } else {
+            preview[i] = '.';
+        }
+    }
+    preview[copy_len] = '\0';
+    jb_append_escaped(jb, preview);
+}
+
 static int try_get_current_process(Process** out_process, User** out_user) {
     if (!process_manager_ready()) {
         return 0;
@@ -633,6 +921,96 @@ static void build_filesystem_object(JsonBuilder* jb) {
     jb_append_char(jb, '}');
 }
 
+static void build_directory_object(JsonBuilder* jb, const char* annex) {
+    const char* raw_path = annex + 9;
+    DiskPathLookupResult result;
+    int ok = lookup_disk_path(raw_path, &result);
+
+    jb_append_char(jb, '{');
+    jb_append_text(jb, "\"path\":");
+    jb_append_escaped(jb, ok ? result.path : "/");
+    jb_append_text(jb, ",\"ok\":");
+    jb_append_bool(jb, ok);
+
+    if (!ok) {
+        jb_append_text(jb, ",\"message\":\"path-not-found\",\"entries\":[]}");
+        return;
+    }
+
+    jb_append_text(jb, ",\"inode\":");
+    jb_append_int(jb, result.inodeNo);
+    jb_append_text(jb, ",\"mode\":");
+    jb_append_hex32(jb, result.inode.d_mode);
+    jb_append_text(jb, ",\"entries\":[");
+
+    const int entry_size = (int)sizeof(DirectoryEntry);
+    const int total_entries = result.inode.d_size / entry_size;
+    int first = 1;
+
+    for (int entry_index = 0; entry_index < total_entries; entry_index++) {
+        int offset = entry_index * entry_size;
+        int lbn = offset / Inode::BLOCK_SIZE;
+        int block_offset = offset % Inode::BLOCK_SIZE;
+        int sector = map_disk_inode_block(result.inode, lbn);
+        unsigned char block[Inode::BLOCK_SIZE];
+        if (sector == 0 || !read_raw_sector(sector, block)) {
+            continue;
+        }
+
+        DirectoryEntry* entry = (DirectoryEntry*)(block + block_offset);
+        if (entry->m_ino == 0) {
+            continue;
+        }
+
+        DiskInode child_inode;
+        if (!read_disk_inode(entry->m_ino, &child_inode)) {
+            continue;
+        }
+
+        char name[DirectoryEntry::DIRSIZ + 1];
+        char full_path[kPathMax + DirectoryEntry::DIRSIZ + 2];
+        copy_directory_entry_name(entry->m_name, name, sizeof(name));
+
+        if (result.path[0] == '/' && result.path[1] == '\0') {
+            safe_str_copy(full_path, sizeof(full_path), "/");
+            safe_str_copy(full_path + 1, sizeof(full_path) - 1, name);
+        } else {
+            safe_str_copy(full_path, sizeof(full_path), result.path);
+            int end = 0;
+            while (full_path[end] != '\0' && end < (int)sizeof(full_path) - 1) {
+                end++;
+            }
+            if (end < (int)sizeof(full_path) - 1) {
+                full_path[end++] = '/';
+                full_path[end] = '\0';
+            }
+            safe_str_copy(full_path + end, sizeof(full_path) - end, name);
+        }
+
+        if (!first) {
+            jb_append_char(jb, ',');
+        }
+        first = 0;
+
+        jb_append_char(jb, '{');
+        jb_append_text(jb, "\"name\":");
+        jb_append_escaped(jb, name);
+        jb_append_text(jb, ",\"path\":");
+        jb_append_escaped(jb, full_path);
+        jb_append_text(jb, ",\"inode\":");
+        jb_append_int(jb, entry->m_ino);
+        jb_append_text(jb, ",\"mode\":");
+        jb_append_hex32(jb, child_inode.d_mode);
+        jb_append_text(jb, ",\"size\":");
+        jb_append_int(jb, child_inode.d_size);
+        jb_append_text(jb, ",\"isDirectory\":");
+        jb_append_bool(jb, (child_inode.d_mode & Inode::IFDIR) != 0);
+        jb_append_char(jb, '}');
+    }
+
+    jb_append_text(jb, "]}");
+}
+
 static void build_memory_object(JsonBuilder* jb, const char* annex) {
     const char* payload = annex + 7;
     char addr_buf[16];
@@ -736,6 +1114,65 @@ static void build_block_object(JsonBuilder* jb, const char* annex) {
     jb_append_text(jb, "\"}");
 }
 
+static void build_file_object(JsonBuilder* jb, const char* annex) {
+    const char* raw_path = annex + 4;
+    DiskPathLookupResult result;
+    int ok = lookup_disk_path(raw_path, &result);
+
+    jb_append_char(jb, '{');
+    jb_append_text(jb, "\"path\":");
+    jb_append_escaped(jb, ok ? result.path : "/");
+    jb_append_text(jb, ",\"ok\":");
+    jb_append_bool(jb, ok);
+
+    if (!ok) {
+        jb_append_text(jb, ",\"message\":\"path-not-found\"}");
+        return;
+    }
+
+    jb_append_text(jb, ",\"inode\":");
+    jb_append_int(jb, result.inodeNo);
+    jb_append_text(jb, ",\"mode\":");
+    jb_append_hex32(jb, result.inode.d_mode);
+    jb_append_text(jb, ",\"size\":");
+    jb_append_int(jb, result.inode.d_size);
+    jb_append_text(jb, ",\"isDirectory\":");
+    jb_append_bool(jb, (result.inode.d_mode & Inode::IFDIR) != 0);
+
+    if ((result.inode.d_mode & Inode::IFDIR) != 0) {
+        jb_append_text(jb, ",\"message\":\"is-directory\"}");
+        return;
+    }
+
+    unsigned char data[kFilePreviewMax];
+    int preview_len = 0;
+    int read_ok = read_inode_preview_bytes(result.inode, data, sizeof(data), &preview_len);
+    jb_append_text(jb, ",\"previewLength\":");
+    jb_append_int(jb, preview_len);
+    jb_append_text(jb, ",\"truncated\":");
+    jb_append_bool(jb, result.inode.d_size > preview_len);
+    jb_append_text(jb, ",\"encoding\":\"hex\",\"data\":\"");
+
+    if (read_ok) {
+        const char* hex = "0123456789abcdef";
+        for (int i = 0; i < preview_len; i++) {
+            unsigned char byte = data[i];
+            jb_append_char(jb, hex[(byte >> 4) & 0x0F]);
+            jb_append_char(jb, hex[byte & 0x0F]);
+        }
+    }
+
+    jb_append_text(jb, "\",\"asciiPreview\":");
+    if (read_ok) {
+        append_ascii_preview(jb, data, preview_len);
+    } else {
+        jb_append_escaped(jb, "");
+    }
+    jb_append_text(jb, ",\"readOk\":");
+    jb_append_bool(jb, read_ok);
+    jb_append_char(jb, '}');
+}
+
 static int build_document(const char* annex, char* buffer, int buffer_size) {
     const char* kind = (annex != 0 && annex[0] != '\0') ? annex : "snapshot";
     JsonBuilder jb;
@@ -774,6 +1211,12 @@ static int build_document(const char* annex, char* buffer, int buffer_size) {
     } else if (str_starts_with(kind, "block/")) {
         jb_append_text(&jb, ",\"data\":");
         build_block_object(&jb, kind);
+    } else if (str_eq(kind, "directory") || str_starts_with(kind, "directory/")) {
+        jb_append_text(&jb, ",\"data\":");
+        build_directory_object(&jb, kind);
+    } else if (str_starts_with(kind, "file/")) {
+        jb_append_text(&jb, ",\"data\":");
+        build_file_object(&jb, kind);
     } else {
         jb_append_text(&jb, ",\"data\":{");
         jb_append_text(&jb, "\"registers\":");
@@ -897,7 +1340,8 @@ void debug_json_handle_monitor_command(const char* cmd,
     if (str_eq(cmd, "json") || str_eq(cmd, "v6json") || str_eq(cmd, "v6json help")) {
         emit_text(writer, context, "v6json <kind>\n");
         emit_text(writer, context, "  kinds: snapshot, registers, backtrace, current-process, processes,\n");
-        emit_text(writer, context, "         filesystem, fs-trace, memory/<addr-hex>/<len-hex>, inode/<n>, block/<n>\n");
+        emit_text(writer, context, "         filesystem, fs-trace, directory[/path], file/<path>,\n");
+        emit_text(writer, context, "         memory/<addr-hex>/<len-hex>, inode/<n>, block/<n>\n");
         emit_text(writer, context, "  raw packet form: qXfer:v6pp-json:read:<kind>:<offset>,<length>\n");
         return;
     }

@@ -1,0 +1,1 @@
+{"version": "2.0.0", "tasks": [{"label": "ensure-qemu-running", "type": "shell", "command": "echo 'QEMU should already be running on port 1234. If not, run: make deploy-full-debug && make qemug-boot-no-rebuild'", "group": {"kind": "build", "isDefault": true}, "problemMatcher": []}]}

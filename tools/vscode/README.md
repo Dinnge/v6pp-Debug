@@ -24,6 +24,8 @@ V6++ 特有的内核与文件系统状态。
 - `monitor v6json processes`
 - `monitor v6json filesystem`
 - `monitor v6json fs-trace`
+- `monitor v6json directory[/path]`
+- `monitor v6json file/<path>`
 - `monitor v6json memory/<addr-hex>/<len-hex>`
 - `monitor v6json inode/<n>`
 - `monitor v6json block/<n>`
@@ -34,12 +36,20 @@ V6++ 特有的内核与文件系统状态。
 
 ## 使用方式
 
-### 1. 启动插件开发宿主
+### 1. 在当前窗口安装前端扩展
 
-1. 在 VS Code 中打开 [tools/vscode](/home/dmy/v6pp/unix-v6pp-tongji/tools/vscode)。
-2. 按 `F5`，会启动一个新的 Extension Development Host，并自动打开仓库根目录。
+推荐直接在仓库根目录窗口里安装本地扩展，而不是再开一个 Extension Development Host：
 
-`tools/vscode/.vscode/launch.json` 已经配置好了这一步。
+```bash
+bash tools/vscode/install_local_extension.sh
+```
+
+然后在 VS Code 里执行一次 `Developer: Reload Window`。
+
+说明：
+
+- 这个脚本会把 [tools/vscode](/home/dmy/v6pp/unix-v6pp-tongji/tools/vscode) 软链接到当前远端 VS Code Server 的扩展目录。
+- 之后你继续在仓库里改扩展代码，只需要 `Reload Window`，不需要重新装。
 
 ### 2. 启动调试目标
 
@@ -55,14 +65,14 @@ make qemug-boot-no-rebuild
 ### 3. 在 VS Code 中附加 GDB
 
 1. 确保已经安装 `ms-vscode.cpptools`。
-2. 把 [launch.example.json](/home/dmy/v6pp/unix-v6pp-tongji/tools/vscode/launch.example.json) 的内容复制到工作区 `.vscode/launch.json`。
-3. 运行调试配置 `V6++ Lifecycle Attach`。
+2. 直接在仓库根目录按 `F5`，选择 `V6++ Lifecycle Attach`。
 
-这个示例配置会：
+根目录工作区已经自带：
 
 - 加载 `boot_debug.elf`
 - 附加到 `127.0.0.1:1234`
 - 补充加载 `kernel.exe` 符号
+- 在启动前检查 `make deploy-full-debug` 和 `make qemug-boot-no-rebuild` 是否已经准备好
 
 说明：
 生命周期调试的最早期 `0x00000000` 初始停机点仍由极简 boot stub 提供，
@@ -72,22 +82,44 @@ make qemug-boot-no-rebuild
 
 ### 4. 查看图形化视图
 
-附加成功后，左侧活动栏会出现 `V6++` 图标。调试器每次停下时，插件会自动刷新：
+附加成功后，调试侧边栏会直接出现这些视图；不需要再切到新窗口。调试器每次停下时，插件会自动刷新：
 
 - 寄存器
 - 回溯
 - 当前进程/进程表
 - superblock 与 mount 状态
 - 文件系统事务追踪
+- 文件系统目录树
+- 文件内容预览（点击文件节点即可打开）
 
 命令面板还提供：
 
+- `V6++: Focus Debug Views`
 - `V6++: Refresh Views`
+- `V6++: Run Monitor Command`
 - `V6++: Inspect Memory`
 - `V6++: Inspect Inode`
 - `V6++: Inspect Block`
+- `V6++: Open Filesystem File`
 - `V6++: Open Snapshot JSON`
 - `V6++: Open Launch Example`
+
+调试控制台里也可以直接输入：
+
+- `monitor v6json registers`
+- `monitor v6json filesystem`
+- `monitor v6json directory/bin`
+- `monitor v6json file/etc/profile`
+- `monitor ls /`
+- `-exec info registers`
+- `-exec bt`
+- `-exec x/32xb 0xc0000000`
+- `-exec set $eax = 0x1234`
+- `-exec set {unsigned int}0xc0007a00 = 0xdeadbeef`
+
+### 5. 插件开发模式（可选）
+
+如果你后续要继续开发这个 VS Code 扩展本身，仍然可以打开 [tools/vscode](/home/dmy/v6pp/unix-v6pp-tongji/tools/vscode) 并使用它自己的 `F5` 配置来启动 Extension Development Host。
 
 ## 备注
 

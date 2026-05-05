@@ -1,14 +1,1 @@
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Run V6++ Extension",
-      "type": "extensionHost",
-      "request": "launch",
-      "args": [
-        "${workspaceFolder}/../.."
-      ],
-      "outFiles": []
-    }
-  ]
-}
+{"version": "0.2.0", "configurations": [{"name": "V6++ 调试", "type": "cppdbg", "request": "launch", "MIMode": "gdb", "miDebuggerPath": "/usr/bin/gdb", "miDebuggerServerAddress": "127.0.0.1:1234", "program": "${workspaceFolder}/../target/objs/boot/boot_debug.elf", "cwd": "${workspaceFolder}/../..", "externalConsole": false, "stopAtEntry": false, "setupCommands": [{"description": "i386 symbols", "text": "set architecture i386"}, {"description": "allow source breakpoints before symbol handoff", "text": "set breakpoint pending on"}, {"description": "load kernel symbols after the bootloader image", "text": "add-symbol-file ${workspaceFolder}/../target/objs/kernel.exe"}], "preLaunchTask": "ensure-qemu-running"}], "compounds": [{"name": "V6++ 完整调试", "configurations": ["V6++ 调试"], "stopAll": true}]}

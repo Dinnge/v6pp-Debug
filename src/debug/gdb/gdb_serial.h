@@ -1,52 +1,52 @@
-// GDB ´®¿ÚÍ¨ĞÅ²ãÍ·ÎÄ¼ş
+// GDB ä¸²å£é€šä¿¡å±‚å¤´æ–‡ä»¶
 
 #ifndef GDB_SERIAL_H
 #define GDB_SERIAL_H
 
 #include "../../include/sys/types.h"
 
-// ´®¿ÚÏà¹Ø³£Á¿
-#define SERIAL_COM1_BASE    0x3F8  // COM1 »ùµØÖ·
+// ä¸²å£ç›¸å…³å¸¸é‡
+#define SERIAL_COM1_BASE    0x3F8  // COM1 åŸºåœ°å€
 #define SERIAL_DATA_PORT(base)          (base)
 #define SERIAL_FIFO_CMD_PORT(base)      (base + 2)
 #define SERIAL_LINE_CMD_PORT(base)      (base + 3)
 #define SERIAL_MODEM_CMD_PORT(base)     (base + 4)
 #define SERIAL_LINE_STATUS_PORT(base)   (base + 5)
 
-// ´®¿Ú³õÊ¼»¯ÅäÖÃ
+// ä¸²å£åˆå§‹åŒ–é…ç½®
 #define SERIAL_BAUD_DIVISOR  12  // 115200 baud (115200 / 9600 = 12)
 
-// Êı¾İ°ü»º³åÇø´óĞ¡
+// æ•°æ®åŒ…ç¼“å†²åŒºå¤§å°
 #define SERIAL_BUFFER_SIZE  4096
 
-// Ïß³Ì°²È«Ëø£¨Èç¹ûÄÚºËÖ§³Ö£©
+// çº¿ç¨‹å®‰å…¨é”ï¼ˆå¦‚æœå†…æ ¸æ”¯æŒï¼‰
 // #define SERIAL_USE_LOCK
 
-// ´®¿Ú³õÊ¼»¯
+// ä¸²å£åˆå§‹åŒ–
 int serial_init(void);
 
-// ·¢ËÍÒ»¸ö×Ö½Ú
+// å‘é€ä¸€ä¸ªå­—èŠ‚
 void serial_outb(unsigned char data);
 
-// ½ÓÊÕÒ»¸ö×Ö½Ú£¨×èÈû£©
+// æ¥æ”¶ä¸€ä¸ªå­—èŠ‚ï¼ˆé˜»å¡ï¼‰
 unsigned char serial_inb(void);
 
-// ½ÓÊÕÒ»¸ö×Ö½Ú£¨·Ç×èÈû£¬·µ»Ø-1±íÊ¾ÎŞÊı¾İ£©
+// æ¥æ”¶ä¸€ä¸ªå­—èŠ‚ï¼ˆéé˜»å¡ï¼Œè¿”å›-1è¡¨ç¤ºæ— æ•°æ®ï¼‰
 int serial_inb_nb(void);
 
-// ·¢ËÍÊı¾İ
+// å‘é€æ•°æ®
 int serial_write(const char* data, int len);
 
-// ½ÓÊÕÊı¾İ£¨·Ç×èÈû£©
+// æ¥æ”¶æ•°æ®ï¼ˆéé˜»å¡ï¼‰
 int serial_read(char* buffer, int max_len);
 
-// ¼ì²éÊÇ·ñÓĞÊı¾İ¿É¶Á
+// æ£€æŸ¥æ˜¯å¦æœ‰æ•°æ®å¯è¯»
 int serial_readable(void);
 
-// ·¢ËÍÊı¾İ°ü£¨´øĞ£ÑéºÍ£©
+// å‘é€æ•°æ®åŒ…ï¼ˆå¸¦æ ¡éªŒå’Œï¼‰
 int serial_send_packet(const char* data, int len);
 
-// ½ÓÊÕÊı¾İ°ü£¨´øĞ£ÑéºÍ£©
+// æ¥æ”¶æ•°æ®åŒ…ï¼ˆå¸¦æ ¡éªŒå’Œï¼‰
 int serial_recv_packet(char* buffer, int max_len);
 
 int check_for_interrupt(void);
@@ -54,10 +54,10 @@ int check_for_interrupt(void);
 int serial_recv_packet_with_interrupt(char* buffer, int max_len);
 void serial_set_rx_interrupt_enabled(int enabled);
 
-// ·¢ËÍACKÈ·ÈÏ
+// å‘é€ACKç¡®è®¤
 void serial_send_ack(void);
 
-// ·¢ËÍNACKÖØ´«ÇëÇó
+// å‘é€NACKé‡ä¼ è¯·æ±‚
 void serial_send_nack(void);
 
 #endif // GDB_SERIAL_H

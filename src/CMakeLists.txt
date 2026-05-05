@@ -1,13 +1,13 @@
 #[[
-    Unix V6++ Tongji ÄÚºËÏîÄ¿
-    ×îºóĞŞ¸Ä 2024Äê4ÔÂ28ÈÕ ÏÂÎç ÓÉ GTY Ìá½»
+    Unix V6++ Tongji å†…æ ¸é¡¹ç›®
+    æœ€åä¿®æ”¹ 2024å¹´4æœˆ28æ—¥ ä¸‹åˆ ç”± GTY æäº¤
 
     by 2051565 GTY
 ]]
 
 cmake_minimum_required(VERSION 3.20)
 
-# ÏîÄ¿Ñ¡Ïî
+# é¡¹ç›®é€‰é¡¹
 option(USE_VESA "enable VESA support and use it as console's backend." ON)
 option(ENABLE_SPLASH "enable splash at boot." ON)
 option(EARLY_BOOT_GDB "enable early boot GDB handoff in kernelBridge." ON)
@@ -22,17 +22,17 @@ set(V6PP_BUILD_TIME_HUMAN_READABLE ${build_time_human_readable})
 project(UnixV6ppTJ)
 
 
-# ÉèÖÃ C++20 ±ê×¼
+# è®¾ç½® C++20 æ ‡å‡†
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 
-# VESA Ö§³Ö
+# VESA æ”¯æŒ
 if (USE_VESA)
     add_compile_definitions(USE_VESA)
 endif()
 
-# Æô¶¯»­Ãæ
+# å¯åŠ¨ç”»é¢
 if (ENABLE_SPLASH)
     add_compile_definitions(ENABLE_SPLASH)
 endif()
@@ -46,20 +46,20 @@ if (KERNEL_GDB_AUTOSTART)
 endif()
 
 
-# ÅäÖÃ NASM »ã±àÆ÷
-# ÔÊĞíÔÚ CMakeLists.txt ÖĞÊ¹ÓÃ NASM
-# ÔÚ×ÓÄ¿Â¼µÄ CMakeLists.txt ÖĞÆôÓÃÓïÑÔ
+# é…ç½® NASM æ±‡ç¼–å™¨
+# å…è®¸åœ¨ CMakeLists.txt ä¸­ä½¿ç”¨ NASM
+# åœ¨å­ç›®å½•çš„ CMakeLists.txt ä¸­å¯ç”¨è¯­è¨€
 set(CMAKE_ASM_NASM_SOURCE_FILE_EXTENSIONS asm)
 set(CMAKE_ASM_NASM_FLAGS "-g")
 set(CMAKE_ASM_NASM_LINK_EXECUTABLE "echo -n")
 
 
-# °üº¬Ä¿Â¼
+# åŒ…å«ç›®å½•
 include_directories("${PROJECT_SOURCE_DIR}")  # for modules forked from yros
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
 
-# GCC ±àÒëÆ÷Ñ¡Ïî
+# GCC ç¼–è¯‘å™¨é€‰é¡¹
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32")
@@ -79,7 +79,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-red-zone")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-mmx")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-sse")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-sse2")
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcmodel=large")  # Â±Ã Ã’Ã«64ÃÂ»Ã„ÃšÂºÃ‹ÃŠÂ±ÃÃ¨Ã†Ã´Ã“Ãƒ
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcmodel=large")  # ç¼–è¯‘ 64 ä½å†…æ ¸æ—¶æ‰éœ€è¦å¼€å¯
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable")
@@ -89,12 +89,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=always")
 
 set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS}")
 
-# Ìí¼Ó×ÓÄ¿Â¼
+# æ·»åŠ å­ç›®å½•
 add_subdirectory(boot)
 
 
 #[[ 
-    ÄÚºË¿â
+    å†…æ ¸åº“
 ]]
 file(GLOB_RECURSE CPP_SOURCE_FILES *.cpp)
 file(GLOB_RECURSE C_SOURCE_FILES *.c)
@@ -107,7 +107,7 @@ set_target_properties(
 
 
 
-# Éú³É kernel.exe
+# ç”Ÿæˆ kernel.exe
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--whole-archive,-m,elf_i386,-T,${CMAKE_SOURCE_DIR}/kernel.link.ld,-static")
 
 set(NULL_CPP_FILE_PATH "${CMAKE_BINARY_DIR}/_yros_cmake_hack/null.cpp")

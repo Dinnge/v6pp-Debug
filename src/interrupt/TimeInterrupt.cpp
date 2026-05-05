@@ -13,42 +13,42 @@ unsigned int Time::tout = 0;
 
 void Time::TimeInterruptEntrance()
 {
-	SaveContext();			/* �����ж��ֳ� */
+	SaveContext();			/* 保存中断现场 */
 
-	SwitchToKernel();		/* �������̬ */
+	SwitchToKernel();		/* 进入核心态 */
 
-	CallHandler(Time, Clock);		/* ����ʱ���жϴ����ӳ��� */
+	CallHandler(Time, Clock);		/* 调用时钟中断处理子程序 */
 
-	/* ��ȡ���ж���ָ��(��Ӳ��ʵʩ)ѹ�����ջ��pt_context��
-	* �����Ϳ��Է���context.xcs�е�OLD_CPL���ж���ǰ̬
-	* ���û�̬���Ǻ���̬��
+	/* 获取由中断隐指令(即硬件实施)压入核心栈的pt_context。
+	* 这样就可以访问context.xcs中的OLD_CPL，判断先前态
+	* 是用户态还是核心态。
 	*/
 	struct pt_context *context;
 	__asm__ __volatile__ ("	movl %%ebp, %0; addl $0x4, %0 " : "+m" (context) );
 
-	if( context->xcs & USER_MODE ) /*��ǰΪ�û�̬*/
+	if( context->xcs & USER_MODE ) /*先前为用户态*/
 	{
 		while(true)
 		{
-			X86Assembly::CLI();	/* ���������ȼ���Ϊ7�� */
+			X86Assembly::CLI();	/* 处理机优先级升为7级 */
 			
 			if(Kernel::Instance().GetProcessManager().RunRun > 0)
 			{
-				X86Assembly::STI();	/* ���������ȼ���Ϊ0�� */
+				X86Assembly::STI();	/* 处理机优先级降为0级 */
 				Kernel::Instance().GetProcessManager().Swtch();
 			}
 			else
 			{
-				break;	/* ���runrun == 0������ջ�ص��û�̬�����û������ִ�� */
+				break;	/* 如果runrun == 0，则退栈回到用户态继续用户程序的执行 */
 			}
 		}
 	}
 
-	RestoreContext();		/* �ָ��ֳ� */
+	RestoreContext();		/* 恢复现场 */
 
-	Leave();				/* �ֹ�����ջ֡ */
+	Leave();				/* 手工销毁栈帧 */
 
-	InterruptReturn();		/* �˳��ж� */
+	InterruptReturn();		/* 退出中断 */
 }
 
 void Time::Clock( struct pt_regs* regs, struct pt_context* context )
@@ -65,7 +65,7 @@ void Time::Clock( struct pt_regs* regs, struct pt_context* context )
 	User& u = Kernel::Instance().GetUser();
 	ProcessManager& procMgr = Kernel::Instance().GetProcessManager();
 
-	/* ϵͳ���û�ʱ���ʱ�������ǰ̬Ϊ�û�̬��modeΪ���� */
+	/* 系统或用户时间计时，如果先前态为用户态，mode为非零 */
 	if ( (context->xcs & USER_MODE) == USER_MODE )
 	{
 		u.u_utime++;
@@ -76,46 +76,46 @@ void Time::Clock( struct pt_regs* regs, struct pt_context* context )
 	}
 
 	Process* current = u.u_procp;
-	/* ���㵱ǰ����ռ�õ�CPUʱ�� */
+	/* 计算当前进程占用的CPU时间 */
 	current->p_cpu = Utility::Min(++current->p_cpu, 1024);
 
-	/* ����һ��ĩβ��������ǰ̬�����Ƿ�����н������������� */
+	/* 到了一秒末尾，根据先前态决定是否对所有进程重算优先数 */
 	if ( ++Time::lbolt < HZ )
     	{
-		/* ����8259A�жϿ���оƬ����EOI��� */
+		/* 对主8259A中断控制芯片发送EOI命令。 */
 		    IOPort::OutByte(Chip8259A::MASTER_IO_PORT_1, Chip8259A::EOI);
         	return;
     	}
     else
 	{
-        /* �ж�ǰΪ����̬���Ѻ�ʱ�ļ���������һ��ʱ���ж��ٿ��� */
+        /* 中断前为核心态，把耗时的计算留在下一次时钟中断再考虑 */
 		/*if( (context->xcs & USER_MODE) == KERNEL_MODE && current->p_pid != 0)*/
     	if( current->p_stat == Process::SRUN && (context->xcs & USER_MODE) == KERNEL_MODE )
 		{
-			/* ����8259A�жϿ���оƬ����EOI��� */
+			/* 对主8259A中断控制芯片发送EOI命令。 */
 			    IOPort::OutByte(Chip8259A::MASTER_IO_PORT_1, Chip8259A::EOI);
         		return;
    		 }
 
-		/* ����Ϊһ��ĩβ�����к�ʱ�ļ������ */
+		/* 以下为一秒末尾，进行耗时的计算过程 */
 		Time::lbolt -= HZ;
 
-		/* ϵͳȫ��ʱ��+1������Ϊ��λ */
+		/* 系统全局时间+1，以秒为单位 */
 		Time::time++;
 
-		/* �����жϽ��룬�൱�ڽ��ʹ��������ȼ� */
+		/* 允许中断进入，相当于降低处理机优先级 */
 		X86Assembly::STI();
-	    /* ����8259A�жϿ���оƬ����EOI��� */
+	    /* 对主8259A中断控制芯片发送EOI命令。 */
 	    IOPort::OutByte(Chip8259A::MASTER_IO_PORT_1, Chip8259A::EOI);
 
 
 		if ( Time::time == Time::tout )
 		{
-			/* ������ʱ˯�ߵĽ��� */
+			/* 唤醒延时睡眠的进程 */
 			procMgr.WakeUpAll((unsigned long)&Time::tout);
 		}
 
-		/* �������н��̵�p_time, p_cpu,�Լ�������p_pri */
+		/* 重算所有进程的p_time, p_cpu,以及优先数p_pri */
 		for( int i = 0; i < ProcessManager::NPROC; i++ )
 		{
 			Process* pProcess = &procMgr.process[i];
@@ -147,14 +147,14 @@ void Time::Clock( struct pt_regs* regs, struct pt_context* context )
 			procMgr.WakeUpAll((unsigned long)&procMgr.RunIn);
 		}
 
-		/* ����ж�ǰΪ�û�̬�����ǽ����źŴ��� */
+		/* 如果中断前为用户态，则考虑进行信号处理 */
 		if ( (context->xcs & USER_MODE) == USER_MODE )
 		{
 			if ( current->IsSig() )
 			{
 				current->PSig(context);
 			}
-			/* ���㵱ǰ���������� */
+			/* 计算当前进程优先数 */
 			current->SetPri();
 		}
 	}

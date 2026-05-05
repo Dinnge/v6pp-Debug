@@ -50,19 +50,19 @@ void Keyboard::KeyboardHandler( struct pt_regs* reg, struct pt_context* context 
 
 	while ( (status & Keyboard::DATA_BUFFER_BUSY) && limit-- )
 	{
-		/* Èç¹û¼üÅÌ»º´æÂú¾ÍÒª¶ÁÈëÊ£ÏÂµÄÉ¨ÃèÂë */
+		/* å¦‚æœé”®ç›˜ç¼“å­˜æ»¡å°±è¦è¯»å…¥å‰©ä¸‹çš„æ‰«æç  */
 		unsigned char scancode = IOPort::InByte(Keyboard::DATA_PORT);
 
-		/* ÒÔÏÂµÄÅĞ¶Ï¹ı³ÌÓĞµãÏñÓĞÏŞ×´Ì¬»ú£¬²»¹ıÃ²ËÆÓĞµÄµØ·½Ã»ÓĞ»¯¼ò */
+		/* ä»¥ä¸‹çš„åˆ¤æ–­è¿‡ç¨‹æœ‰ç‚¹åƒæœ‰é™çŠ¶æ€æœºï¼Œä¸è¿‡è²Œä¼¼æœ‰çš„åœ°æ–¹æ²¡æœ‰åŒ–ç®€ */
 		if ( 0 == pre_state )
 		{
 			if ( 0xE0 == scancode || 0xE1 == scancode )
 			{
-				/* ½«×´Ì¬¸ÄÎª0xe0±íÊ¾»¹ÓĞ×Ö·ûÃ»ÓĞ¶ÁÈë */
-				/* ²úÉú0xe1Ö»ÓĞÒ»ÖÖ×´Ì¬£¬ÄÇ¾ÍÊÇpause¼ü±»°´ÏÂ£¬°´¼ü°´ÏÂĞòÁĞÎª0xe1,0x1d,0x45£¬°´¼ü¶Ï¿ªĞòÁĞÎª0xe1,0x9d,0xc5  */
+				/* å°†çŠ¶æ€æ”¹ä¸º0xe0è¡¨ç¤ºè¿˜æœ‰å­—ç¬¦æ²¡æœ‰è¯»å…¥ */
+				/* äº§ç”Ÿ0xe1åªæœ‰ä¸€ç§çŠ¶æ€ï¼Œé‚£å°±æ˜¯pauseé”®è¢«æŒ‰ä¸‹ï¼ŒæŒ‰é”®æŒ‰ä¸‹åºåˆ—ä¸º0xe1,0x1d,0x45ï¼ŒæŒ‰é”®æ–­å¼€åºåˆ—ä¸º0xe1,0x9d,0xc5  */
 				pre_state = scancode;
 			}
-			else	/* ·ÇÀ©Õ¹¼ü */
+			else	/* éæ‰©å±•é”® */
 			{
 				pre_state = 0;
 				Keyboard::HandleScanCode(scancode, 0);
@@ -70,15 +70,15 @@ void Keyboard::KeyboardHandler( struct pt_regs* reg, struct pt_context* context 
 		}
 		else if ( 0xE0 == pre_state )
 		{
-			/* À©Õ¹¼üµÄµÚ¶ş¸öÉ¨ÃèÂë */
+			/* æ‰©å±•é”®çš„ç¬¬äºŒä¸ªæ‰«æç  */
 			pre_state = 0;
 			Keyboard::HandleScanCode(scancode, 0xe0);
 		}
 		else if ( 0xE1 == pre_state && ( 0x1d == scancode || 0x9d == scancode ) )
 		{
-			pre_state = 0x100;	/* ÖĞ¼ä×´Ì¬£¬±íÊ¾pauseÒÑ¾­ÓĞÁ½¸ö¼üÎÇºÏ */
+			pre_state = 0x100;	/* ä¸­é—´çŠ¶æ€ï¼Œè¡¨ç¤ºpauseå·²ç»æœ‰ä¸¤ä¸ªé”®å»åˆ */
 		}
-		else if ( pre_state == 0x100 && 0x45 == scancode )	/* Ö»ĞèÒªÖªµÀpause¼üÊ²Ã´Ê±ºò°´ÏÂ */
+		else if ( pre_state == 0x100 && 0x45 == scancode )	/* åªéœ€è¦çŸ¥é“pauseé”®ä»€ä¹ˆæ—¶å€™æŒ‰ä¸‹ */
 		{
 			pre_state = 0;
 			Keyboard::HandleScanCode(scancode, 0xe1);
@@ -104,14 +104,14 @@ void Keyboard::HandleScanCode(unsigned char scanCode, int expand)
 	switch ( scanCode )
 	{
 	case SCAN_ALT:
-		if ( 0xE0 == expand )	/* Ê¹ÓÃÀ©Õ¹¼ü£¬±íÊ¾ÊÇÓÒ±ßµÄ alt°´ÏÂ */
+		if ( 0xE0 == expand )	/* ä½¿ç”¨æ‰©å±•é”®ï¼Œè¡¨ç¤ºæ˜¯å³è¾¹çš„ altæŒ‰ä¸‹ */
 			Mode |= M_RALT;
 		else
 			Mode |= M_LALT;
 		break;
 
 	case SCAN_CTRL:
-		if ( 0xE0 == expand )	/* Ê¹ÓÃÀ©Õ¹¼ü£¬±íÊ¾ÊÇÓÒ±ßµÄ ctrl°´ÏÂ */
+		if ( 0xE0 == expand )	/* ä½¿ç”¨æ‰©å±•é”®ï¼Œè¡¨ç¤ºæ˜¯å³è¾¹çš„ ctrlæŒ‰ä¸‹ */
 			Mode |= M_RCTRL;
 		else
 			Mode |= M_LCTRL;
@@ -125,7 +125,7 @@ void Keyboard::HandleScanCode(unsigned char scanCode, int expand)
 		Mode |= M_RSHIFT;
 		break;
 
-	/* ´¦Àí°´¼ü±»ËÉ¿ªµÄÇé¿ö£¬Çå¿ÕModeÖĞ°´¼ü¶ÔÓ¦µÄ±êÖ¾Î» */
+	/* å¤„ç†æŒ‰é”®è¢«æ¾å¼€çš„æƒ…å†µï¼Œæ¸…ç©ºModeä¸­æŒ‰é”®å¯¹åº”çš„æ ‡å¿—ä½ */
 	case SCAN_ALT + 0x80:
 		if ( 0xE0 == expand )
 			Mode &= ~M_RALT;
@@ -148,11 +148,11 @@ void Keyboard::HandleScanCode(unsigned char scanCode, int expand)
 		Mode &= ~M_RSHIFT;
 		break;
 
-	/* Ã¿´Î°´ÏÂ¾Í·´×ª¸Ä±ä×´Ì¬Î» */
+	/* æ¯æ¬¡æŒ‰ä¸‹å°±åè½¬æ”¹å˜çŠ¶æ€ä½ */
 	
 	/* 
-	 * M_DOWN_NUMLOCKºê±íÊ¾NUMLOCK±»°´ÏÂ£¬ÔÚÃ»ÓĞ°´ÏÂµÄ
-	 * ×´Ì¬ÏÂ°´ÏÂNumLock¼üĞèÒª·´×ª×´Ì¬£¬²¢ÖÃnumlock¼üÃ»ÓĞËÉ¿ª
+	 * M_DOWN_NUMLOCKå®è¡¨ç¤ºNUMLOCKè¢«æŒ‰ä¸‹ï¼Œåœ¨æ²¡æœ‰æŒ‰ä¸‹çš„
+	 * çŠ¶æ€ä¸‹æŒ‰ä¸‹NumLocké”®éœ€è¦åè½¬çŠ¶æ€ï¼Œå¹¶ç½®numlocké”®æ²¡æœ‰æ¾å¼€
 	 */
 	case SCAN_NUMLOCK:
 		isOK = Mode & M_DOWN_NUMLOCK;
@@ -181,7 +181,7 @@ void Keyboard::HandleScanCode(unsigned char scanCode, int expand)
 		}
 		break;
 
-	/* ÊÍ·ÅNumLock£¬CapsLock£¬ScrollLock¼ü */
+	/* é‡Šæ”¾NumLockï¼ŒCapsLockï¼ŒScrollLocké”® */
 	case SCAN_NUMLOCK + 0x80:
 		Mode &= ~M_DOWN_NUMLOCK;
 		break;
@@ -218,9 +218,9 @@ ScanCodeTranslate(unsigned char scanCode, int expand)
 	{
 		ch = 0x05;	/* Pause ASCII */
 	}
-	else if ( scanCode < 0x45 )	/* ·ÇĞ¡¼üÅÌºÍ¿ØÖÆ¼ü */
+	else if ( scanCode < 0x45 )	/* éå°é”®ç›˜å’Œæ§åˆ¶é”® */
 	{
-		/* ¸ù¾İÉ¨ÃèÂëÓ³Éä±íÕÒµ½¶ÔÓ¦°´¼üµÄASCIIÂë */
+		/* æ ¹æ®æ‰«æç æ˜ å°„è¡¨æ‰¾åˆ°å¯¹åº”æŒ‰é”®çš„ASCIIç  */
 		if ( (Mode & M_LSHIFT) || (Mode & M_RSHIFT) )
 		{
 			ch = Shift_Keymap[scanCode];
@@ -232,16 +232,16 @@ ScanCodeTranslate(unsigned char scanCode, int expand)
 
 		if ( ch >= 'a' && ch <= 'z' )
 		{
-			/* ÊÇĞ¡Ğ´×Ö·û¶øÇÒÒÑ¾­CapslockÁË£¬ÄÇÃ´×ª»»³É´óĞ´×Ö·û */
+			/* æ˜¯å°å†™å­—ç¬¦è€Œä¸”å·²ç»Capslockäº†ï¼Œé‚£ä¹ˆè½¬æ¢æˆå¤§å†™å­—ç¬¦ */
 			bReverse = ( (Mode & M_CAPSLOCK) ? 1 : 0 ) ^ ( (Mode & M_LSHIFT) || (Mode & M_RSHIFT) );
 
-			if ( (Mode & M_LCTRL) || (Mode & M_RCTRL) )	/* °´ÏÂctrl½øĞĞ×ªÒâ */
+			if ( (Mode & M_LCTRL) || (Mode & M_RCTRL) )	/* æŒ‰ä¸‹ctrlè¿›è¡Œè½¬æ„ */
 			{
-				if('c' ==  ch)  /* ctrl+c --> SIGINTĞÅºÅ£¬ËÍ¸ø³ı sched¡¢shell Ö®ÍâµÄËùÓĞ½ø³Ì */
+				if('c' ==  ch)  /* ctrl+c --> SIGINTä¿¡å·ï¼Œé€ç»™é™¤ schedã€shell ä¹‹å¤–çš„æ‰€æœ‰è¿›ç¨‹ */
 				{
 					ch = 0;
 
-					/* FLushÖÕ¶Ë */
+					/* FLushç»ˆç«¯ */
 					TTy* pTTy = Kernel::Instance().GetDeviceManager().GetCharDevice(DeviceManager::TTYDEV).m_TTy;
 					if ( NULL != pTTy )
 					{
@@ -253,13 +253,13 @@ ScanCodeTranslate(unsigned char scanCode, int expand)
 						if ( procMgr.process[killed].p_pid > 1)
 							procMgr.process[killed].PSignal(User::SIGINT);
 
-						// ¶îÍâ£ºµ±ÊÕµ½ Ctrl+C Ê±´¥·¢µ÷ÊÔÒì³££¬Ç¿ÖÆ½øÈëµ÷ÊÔÆ÷
+						// é¢å¤–ï¼šå½“æ”¶åˆ° Ctrl+C æ—¶è§¦å‘è°ƒè¯•å¼‚å¸¸ï¼Œå¼ºåˆ¶è¿›å…¥è°ƒè¯•å™¨
 						asm volatile("int $0x01");
 				}
 				else
 				{
 					ch -= 'a';
-				    ch++;	/* ×ªÒå´Ó0x1 ¿ªÊ¼*/
+				    ch++;	/* è½¬ä¹‰ä»0x1 å¼€å§‹*/
 				}
 			}
 			else if ( bReverse )

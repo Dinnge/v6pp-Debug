@@ -7,129 +7,129 @@
 
 void KeyboardInterrupt::KeyboardInterruptEntrance()
 {
-	// 1. ¶ÁÈ¡¼üÅÌÉ¨ÃèÂë
+	// 1. è¯»å–é”®ç›˜æ‰«æç 
     // unsigned char scancode = IOPort::InByte(0x60);
     
-    // // 2. ¼ì²âCtrl+C£¨É¨ÃèÂë0x03£©
+    // // 2. æ£€æµ‹Ctrl+Cï¼ˆæ‰«æç 0x03ï¼‰
     // if (scancode == 0x03) {  // Ctrl+C
-    //     // 3. ´¥·¢µ÷ÊÔÒì³££¨INT 1£©
+    //     // 3. è§¦å‘è°ƒè¯•å¼‚å¸¸ï¼ˆINT 1ï¼‰
     //     asm volatile("int $0x01");
     // }
-	SaveContext();			/* ±£´æÖĞ¶ÏÏÖ³¡ */
+	SaveContext();			/* ä¿å­˜ä¸­æ–­ç°åœº */
 
-	SwitchToKernel();		/* ½øÈëºËĞÄÌ¬ */
+	SwitchToKernel();		/* è¿›å…¥æ ¸å¿ƒæ€ */
 
-	CallHandler(Keyboard, KeyboardHandler);		/* µ÷ÓÃ¼üÅÌÖĞ¶ÏÉè±¸´¦Àí×Ó³ÌĞò */
+	CallHandler(Keyboard, KeyboardHandler);		/* è°ƒç”¨é”®ç›˜ä¸­æ–­è®¾å¤‡å¤„ç†å­ç¨‹åº */
 
-	/* ¶ÔÖ÷8259AÖĞ¶Ï¿ØÖÆĞ¾Æ¬·¢ËÍEOIÃüÁî¡£ */
+	/* å¯¹ä¸»8259Aä¸­æ–­æ§åˆ¶èŠ¯ç‰‡å‘é€EOIå‘½ä»¤ã€‚ */
 	IOPort::OutByte(Chip8259A::MASTER_IO_PORT_1, Chip8259A::EOI);
 
-	/* »ñÈ¡ÓÉÖĞ¶ÏÒşÖ¸Áî(¼´Ó²¼şÊµÊ©)Ñ¹ÈëºËĞÄÕ»µÄpt_context¡£
-	* ÕâÑù¾Í¿ÉÒÔ·ÃÎÊcontext.xcsÖĞµÄOLD_CPL£¬ÅĞ¶ÏÏÈÇ°Ì¬
-	* ÊÇÓÃ»§Ì¬»¹ÊÇºËĞÄÌ¬¡£
+	/* è·å–ç”±ä¸­æ–­éšæŒ‡ä»¤(å³ç¡¬ä»¶å®æ–½)å‹å…¥æ ¸å¿ƒæ ˆçš„pt_contextã€‚
+	* è¿™æ ·å°±å¯ä»¥è®¿é—®context.xcsä¸­çš„OLD_CPLï¼Œåˆ¤æ–­å…ˆå‰æ€
+	* æ˜¯ç”¨æˆ·æ€è¿˜æ˜¯æ ¸å¿ƒæ€ã€‚
 	*/
 	struct pt_context *context;
 	__asm__ __volatile__ ("	movl %%ebp, %0; addl $0x4, %0 " : "+m" (context) );
 
-	if( context->xcs & USER_MODE ) /*ÏÈÇ°ÎªÓÃ»§Ì¬*/
+	if( context->xcs & USER_MODE ) /*å…ˆå‰ä¸ºç”¨æˆ·æ€*/
 	{
 		while(true)
 		{
-			X86Assembly::CLI();	/* ´¦Àí»úÓÅÏÈ¼¶ÉıÎª7¼¶ */
+			X86Assembly::CLI();	/* å¤„ç†æœºä¼˜å…ˆçº§å‡ä¸º7çº§ */
 			
 			if(Kernel::Instance().GetProcessManager().RunRun > 0)
 			{
-				X86Assembly::STI();	/* ´¦Àí»úÓÅÏÈ¼¶½µÎª0¼¶ */
+				X86Assembly::STI();	/* å¤„ç†æœºä¼˜å…ˆçº§é™ä¸º0çº§ */
 				Kernel::Instance().GetProcessManager().Swtch();
 			}
 			else
 			{
-				break;	/* Èç¹ûrunrun == 0£¬ÔòÍËÕ»»Øµ½ÓÃ»§Ì¬¼ÌĞøÓÃ»§³ÌĞòµÄÖ´ĞĞ */
+				break;	/* å¦‚æœrunrun == 0ï¼Œåˆ™é€€æ ˆå›åˆ°ç”¨æˆ·æ€ç»§ç»­ç”¨æˆ·ç¨‹åºçš„æ‰§è¡Œ */
 			}
 		}
 	}
 	
-	RestoreContext();		/* »Ö¸´ÏÖ³¡ */
+	RestoreContext();		/* æ¢å¤ç°åœº */
 
-	Leave();				/* ÊÖ¹¤Ïú»ÙÕ»Ö¡ */
+	Leave();				/* æ‰‹å·¥é”€æ¯æ ˆå¸§ */
 
-	InterruptReturn();		/* ÍË³öÖĞ¶Ï */
+	InterruptReturn();		/* é€€å‡ºä¸­æ–­ */
 }
 // void KeyboardInterrupt::KeyboardInterruptEntrance()
 // {
-//     SaveContext();          /* ±£´æÖĞ¶ÏÏÖ³¡ */
-//     SwitchToKernel();       /* ½øÈëºËĞÄÌ¬ */
+//     SaveContext();          /* ä¿å­˜ä¸­æ–­ç°åœº */
+//     SwitchToKernel();       /* è¿›å…¥æ ¸å¿ƒæ€ */
     
-//     // ¶ÁÈ¡¼üÅÌÉ¨ÃèÂë£¨ÔÚ±£´æÉÏÏÂÎÄÖ®ºó£¡£©
+//     // è¯»å–é”®ç›˜æ‰«æç ï¼ˆåœ¨ä¿å­˜ä¸Šä¸‹æ–‡ä¹‹åï¼ï¼‰
 //     unsigned char scancode = IOPort::InByte(0x60);
     
-//     // µ÷ÊÔÊä³öÉ¨ÃèÂë
-//     // Diagnose::Write("[KEYBOARD] É¨ÃèÂë: 0x%02x\n", scancode);
+//     // è°ƒè¯•è¾“å‡ºæ‰«æç 
+//     // Diagnose::Write("[KEYBOARD] æ‰«æç : 0x%02x\n", scancode);
     
-//     // Ctrl+C¼ì²â£¨ĞèÒª¸ú×Ù×´Ì¬£©
+//     // Ctrl+Cæ£€æµ‹ï¼ˆéœ€è¦è·Ÿè¸ªçŠ¶æ€ï¼‰
 //     static bool ctrl_pressed = false;
     
-//     if (scancode < 0x80) {  // °´¼ü°´ÏÂ
-//         if (scancode == 0x1D) {  // Ctrl¼üÉ¨ÃèÂëÊÇ0x1D
+//     if (scancode < 0x80) {  // æŒ‰é”®æŒ‰ä¸‹
+//         if (scancode == 0x1D) {  // Ctrlé”®æ‰«æç æ˜¯0x1D
 //             ctrl_pressed = true;
 //         } 
-//         else if (scancode == 0x2E && ctrl_pressed) {  // C¼üÉ¨ÃèÂëÊÇ0x2E
-//             // Ctrl+C×éºÏ¼ü£¡
+//         else if (scancode == 0x2E && ctrl_pressed) {  // Cé”®æ‰«æç æ˜¯0x2E
+//             // Ctrl+Cç»„åˆé”®ï¼
 //             ctrl_pressed = false;
             
-//             // ·¢ËÍEOI
+//             // å‘é€EOI
 //             IOPort::OutByte(Chip8259A::MASTER_IO_PORT_1, Chip8259A::EOI);
             
-//             // ´¥·¢µ÷ÊÔÒì³££¨INT 1£©
+//             // è§¦å‘è°ƒè¯•å¼‚å¸¸ï¼ˆINT 1ï¼‰
 //             asm volatile("int $0x01");
             
-//             // »Ö¸´ÏÖ³¡²¢·µ»Ø£¨²»¼ÌĞøÖ´ĞĞÔ­ÓĞ¼üÅÌ´¦Àí£©
+//             // æ¢å¤ç°åœºå¹¶è¿”å›ï¼ˆä¸ç»§ç»­æ‰§è¡ŒåŸæœ‰é”®ç›˜å¤„ç†ï¼‰
 //             RestoreContext();
 //             Leave();
 //             InterruptReturn();
-//             return;  // ÖØÒª£ºÖ±½Ó·µ»Ø£¡
+//             return;  // é‡è¦ï¼šç›´æ¥è¿”å›ï¼
 //         }
 //         else if (scancode != 0x1D) {
-//             // ÆäËû¼ü°´ÏÂ£¬ÖØÖÃCtrl×´Ì¬
+//             // å…¶ä»–é”®æŒ‰ä¸‹ï¼Œé‡ç½®CtrlçŠ¶æ€
 //             ctrl_pressed = false;
 //         }
 //     } else {
-//         // °´¼üÊÍ·Å
+//         // æŒ‰é”®é‡Šæ”¾
 //         unsigned char release_code = scancode - 0x80;
-//         if (release_code == 0x1D) {  // Ctrl¼üÊÍ·Å
+//         if (release_code == 0x1D) {  // Ctrlé”®é‡Šæ”¾
 //             ctrl_pressed = false;
 //         }
 //     }
     
-//     // Ô­ÓĞµÄ¼üÅÌ´¦Àí
+//     // åŸæœ‰çš„é”®ç›˜å¤„ç†
 //     CallHandler(Keyboard, KeyboardHandler);
     
-//     /* ¶ÔÖ÷8259AÖĞ¶Ï¿ØÖÆĞ¾Æ¬·¢ËÍEOIÃüÁî¡£ */
+//     /* å¯¹ä¸»8259Aä¸­æ–­æ§åˆ¶èŠ¯ç‰‡å‘é€EOIå‘½ä»¤ã€‚ */
 //     IOPort::OutByte(Chip8259A::MASTER_IO_PORT_1, Chip8259A::EOI);
     
-//     /* »ñÈ¡ÓÉÖĞ¶ÏÒşÖ¸Áî(¼´Ó²¼şÊµÊ©)Ñ¹ÈëºËĞÄÕ»µÄpt_context¡£*/
+//     /* è·å–ç”±ä¸­æ–­éšæŒ‡ä»¤(å³ç¡¬ä»¶å®æ–½)å‹å…¥æ ¸å¿ƒæ ˆçš„pt_contextã€‚*/
 //     struct pt_context *context;
 //     __asm__ __volatile__ ("	movl %%ebp, %0; addl $0x4, %0 " : "+m" (context) );
     
-//     if( context->xcs & USER_MODE ) /*ÏÈÇ°ÎªÓÃ»§Ì¬*/
+//     if( context->xcs & USER_MODE ) /*å…ˆå‰ä¸ºç”¨æˆ·æ€*/
 //     {
 //         while(true)
 //         {
-//             X86Assembly::CLI();	/* ´¦Àí»úÓÅÏÈ¼¶ÉıÎª7¼¶ */
+//             X86Assembly::CLI();	/* å¤„ç†æœºä¼˜å…ˆçº§å‡ä¸º7çº§ */
             
 //             if(Kernel::Instance().GetProcessManager().RunRun > 0)
 //             {
-//                 X86Assembly::STI();	/* ´¦Àí»úÓÅÏÈ¼¶½µÎª0¼¶ */
+//                 X86Assembly::STI();	/* å¤„ç†æœºä¼˜å…ˆçº§é™ä¸º0çº§ */
 //                 Kernel::Instance().GetProcessManager().Swtch();
 //             }
 //             else
 //             {
-//                 break;	/* Èç¹ûrunrun == 0£¬ÔòÍËÕ»»Øµ½ÓÃ»§Ì¬¼ÌĞøÓÃ»§³ÌĞòµÄÖ´ĞĞ */
+//                 break;	/* å¦‚æœrunrun == 0ï¼Œåˆ™é€€æ ˆå›åˆ°ç”¨æˆ·æ€ç»§ç»­ç”¨æˆ·ç¨‹åºçš„æ‰§è¡Œ */
 //             }
 //         }
 //     }
     
-//     RestoreContext();		/* »Ö¸´ÏÖ³¡ */
-//     Leave();				/* ÊÖ¹¤Ïú»ÙÕ»Ö¡ */
-//     InterruptReturn();		/* ÍË³öÖĞ¶Ï */
+//     RestoreContext();		/* æ¢å¤ç°åœº */
+//     Leave();				/* æ‰‹å·¥é”€æ¯æ ˆå¸§ */
+//     InterruptReturn();		/* é€€å‡ºä¸­æ–­ */
 // }

@@ -1,21 +1,21 @@
-// GDB Socket Í¨ĞÅ²ãÊµÏÖ - ´®¿Ú°æ±¾
-// Ê¹ÓÃ 8250 UART ´®¿ÚÊµÏÖ GDB Ô¶³Ìµ÷ÊÔĞ­Òé
+// GDB Socket é€šä¿¡å±‚å®ç° - ä¸²å£ç‰ˆæœ¬
+// ä½¿ç”¨ 8250 UART ä¸²å£å®ç° GDB è¿œç¨‹è°ƒè¯•åè®®
 
 #include "gdb_socket.h"
 #include "gdb_serial.h"
 #include "../../include/Video.h"
 
-// ³õÊ¼»¯±êÖ¾
+// åˆå§‹åŒ–æ ‡å¿—
 static int g_socket_initialized = 0;
 static Socket g_active_socket = 0;
 
-// ³õÊ¼»¯ socket ²ã£¨Êµ¼ÊÉÏÊÇ´®¿Ú£©
+// åˆå§‹åŒ– socket å±‚ï¼ˆå®é™…ä¸Šæ˜¯ä¸²å£ï¼‰
 int gdb_socket_init(void) {
     if (g_socket_initialized) {
         return 0;
     }
 
-    // ³õÊ¼»¯´®¿Ú
+    // åˆå§‹åŒ–ä¸²å£
     if (serial_init() != 0) {
         Diagnose::Write("Failed to initialize serial port\n");
         return -1;
@@ -27,7 +27,7 @@ int gdb_socket_init(void) {
     return 0;
 }
 
-// ´´½¨ socket£¨Êµ¼ÊÉÏÊÇ×¼±¸´®¿Ú£©
+// åˆ›å»º socketï¼ˆå®é™…ä¸Šæ˜¯å‡†å¤‡ä¸²å£ï¼‰
 Socket gdb_socket_create(void) {
     if (!g_socket_initialized) {
         return (Socket)-1;
@@ -36,36 +36,36 @@ Socket gdb_socket_create(void) {
     return g_active_socket;
 }
 
-// °ó¶¨¶Ë¿Ú£¨´®¿Ú²»Ê¹ÓÃ¶Ë¿Ú£¬±£Áô½Ó¿Ú£©
+// ç»‘å®šç«¯å£ï¼ˆä¸²å£ä¸ä½¿ç”¨ç«¯å£ï¼Œä¿ç•™æ¥å£ï¼‰
 int gdb_socket_bind(Socket sock, int port) {
     Diagnose::Write("Socket: using COM1 (no port binding needed)\n");
     return 0;
 }
 
-// ¼àÌıÁ¬½Ó£¨´®¿ÚÖ±½Ó¿ÉÓÃ£©
+// ç›‘å¬è¿æ¥ï¼ˆä¸²å£ç›´æ¥å¯ç”¨ï¼‰
 int gdb_socket_listen(Socket sock) {
     Diagnose::Write("Socket: listening on COM1\n");
     return 0;
 }
 
-// ½ÓÊÜÁ¬½Ó£¨´®¿ÚÃ»ÓĞÁ¬½Ó¸ÅÄî£¬Ö±½Ó·µ»Ø£©
+// æ¥å—è¿æ¥ï¼ˆä¸²å£æ²¡æœ‰è¿æ¥æ¦‚å¿µï¼Œç›´æ¥è¿”å›ï¼‰
 Socket gdb_socket_accept(Socket sock) {
     Diagnose::Write("Socket: serial connection accepted (waiting for GDB client)\n");
     return g_active_socket;
 }
 
-// ½ÓÊÕÊı¾İ£¨´Ó´®¿Ú½ÓÊÕ£©
+// æ¥æ”¶æ•°æ®ï¼ˆä»ä¸²å£æ¥æ”¶ï¼‰
 int gdb_socket_recv(Socket sock, char* buffer, int size) {
     if (!g_socket_initialized) {
         return -1;
     }
 
-    // Ê¹ÓÃ´®¿ÚµÄÖğ°ü½âÎöÆ÷À´½ÓÊÕÒ»¸öÍêÕûµÄ GDB °ü£¨´®¿Ú²ã»á¸ºÔğ ACK/NACK£©
+    // ä½¿ç”¨ä¸²å£çš„é€åŒ…è§£æå™¨æ¥æ¥æ”¶ä¸€ä¸ªå®Œæ•´çš„ GDB åŒ…ï¼ˆä¸²å£å±‚ä¼šè´Ÿè´£ ACK/NACKï¼‰
     int len = serial_recv_packet(buffer, size);
 
     // if (len > 0) {
     //     Diagnose::Write("Socket: received packet, ");
-    //     // Êä³ö³¤¶ÈÊı×Ö£¨¼òµ¥ÊµÏÖ£©
+    //     // è¾“å‡ºé•¿åº¦æ•°å­—ï¼ˆç®€å•å®ç°ï¼‰
     //     char tmp[16];
     //     int i = 0;
     //     int v = len;
@@ -83,34 +83,34 @@ int gdb_socket_recv(Socket sock, char* buffer, int size) {
     return len;
 }
 
-// ·¢ËÍÊı¾İ£¨Í¨¹ı´®¿Ú·¢ËÍ£©
+// å‘é€æ•°æ®ï¼ˆé€šè¿‡ä¸²å£å‘é€ï¼‰
 int gdb_socket_send(Socket sock, const char* data, int size) {
     if (!g_socket_initialized) {
         return -1;
     }
 
-    // Ö±½Ó·¢ËÍÊı¾İ
+    // ç›´æ¥å‘é€æ•°æ®
     int sent = serial_write(data, size);
 
     // Diagnose::Write("Socket: sent ");
-    // // ¼òµ¥µÄÊı×ÖÊä³ö
+    // // ç®€å•çš„æ•°å­—è¾“å‡º
     // Diagnose::Write("X");
     // Diagnose::Write(" bytes\n");
 
     return sent;
 }
 
-// ¹Ø±Õ socket£¨´®¿ÚÎŞĞè¹Ø±Õ£©
+// å…³é—­ socketï¼ˆä¸²å£æ— éœ€å…³é—­ï¼‰
 void gdb_socket_close(Socket sock) {
     Diagnose::Write("Socket: closed (serial port remains active)\n");
 }
 
-// ·Ç×èÈûÉèÖÃ£¨´®¿ÚÊ¼ÖÕ·Ç×èÈû£©
+// éé˜»å¡è®¾ç½®ï¼ˆä¸²å£å§‹ç»ˆéé˜»å¡ï¼‰
 void gdb_socket_set_nonblocking(Socket sock, int nonblock) {
-    // ´®¿Ú½ÓÊÕº¯Êı±¾À´¾ÍÊÇ·Ç×èÈûµÄ£¬ÎŞĞèÉèÖÃ
+    // ä¸²å£æ¥æ”¶å‡½æ•°æœ¬æ¥å°±æ˜¯éé˜»å¡çš„ï¼Œæ— éœ€è®¾ç½®
 }
 
-// ¼ì²éÊÇ·ñÓĞÊı¾İ¿É¶Á
+// æ£€æŸ¥æ˜¯å¦æœ‰æ•°æ®å¯è¯»
 int gdb_socket_readable(Socket sock) {
     return serial_readable();
 }

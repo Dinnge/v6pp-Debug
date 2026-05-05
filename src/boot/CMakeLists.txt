@@ -1,6 +1,6 @@
 #[[
-    boot ½×¶ÎµÄ CMake ÅäÖÃÎÄ¼ş
-    ¸ºÔğ±àÒë boot.asm£¬²¢Éú³É boot loader ¼° sector2.o
+    boot é˜¶æ®µçš„ CMake é…ç½®æ–‡ä»¶
+    è´Ÿè´£ç¼–è¯‘ boot.asmï¼Œå¹¶ç”Ÿæˆ boot loader åŠ sector2.o
 
     by 2051565 GTY
 ]]
@@ -8,7 +8,7 @@
 
 set(BOOT_OUTPUT_DIR "${CMAKE_SOURCE_DIR}/../target/objs/boot")
 
-# Ninja Êä³öÄ¿Â¼£¬ÓÃÓÚ½«±àÒë½á¹û¸´ÖÆµ½ boot Êä³öÄ¿Â¼
+# Ninja è¾“å‡ºç›®å½•ï¼Œç”¨äºå°†ç¼–è¯‘ç»“æœå¤åˆ¶åˆ° boot è¾“å‡ºç›®å½•
 set(BOOT_OUTPUT_DIR_NINJA "${CMAKE_SOURCE_DIR}/../target/objs")
 
 file(MAKE_DIRECTORY ${BOOT_OUTPUT_DIR})
@@ -21,8 +21,8 @@ enable_language(ASM_NASM)
 add_executable(boot boot.asm)
 
 
-# sector2.asm ±àÒë¹æÔò
-# Èç¹û¿ªÆô EARLY_BOOT_GDB£¬»áÎª sector2.asm Ìí¼ÓÔçÆÚ GDB Ö§³Ö
+# sector2.asm ç¼–è¯‘è§„åˆ™
+# å¦‚æœå¼€å¯ EARLY_BOOT_GDBï¼Œä¼šä¸º sector2.asm æ·»åŠ æ—©æœŸ GDB æ”¯æŒ
 add_custom_command(
     OUTPUT ${BOOT_OUTPUT_DIR}/sector2.o
     COMMAND nasm -f elf32

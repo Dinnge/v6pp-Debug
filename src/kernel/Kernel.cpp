@@ -7,30 +7,30 @@
 Kernel Kernel::instance;
 
 /* 
- * �ڴ������ص�ȫ��manager
+ * 内存管理相关的全局manager
  */
 UserPageManager g_UserPageManager(&(Allocator::GetInstance()));
 KernelPageManager g_KernelPageManager(&(Allocator::GetInstance()));
 KernelAllocator g_KernelAllocator(&(Allocator::GetInstance()));
 
 /*
- * ���������ȫ��manager
+ * 交换区相关全局manager
  */
 SwapperManager g_SwapperManager(&(Allocator::GetInstance()));
 
 /* 
- * �������ȫ��manager
+ * 进程相关全局manager
  */
 ProcessManager g_ProcessManager;
 
 /*
- * �豸���������ٻ������ȫ��manager
+ * 设备管理、高速缓存管理全局manager
  */
 BufferManager g_BufferManager;
 DeviceManager g_DeviceManager;
 
 /*
- * �ļ�ϵͳ���ȫ��manager
+ * 文件系统相关全局manager
  */
 FileSystem g_FileSystem;
 FileManager g_FileManager;
@@ -64,7 +64,7 @@ void Kernel::InitMemory()
 	this->GetKernelAllocator().Initialize();
 	Diagnose::Write("Ok.\n");
 
-	/* ����new/delete operator��Ҫʹ�õ�Allocator */
+	/* 设置new/delete operator需要使用的Allocator */
 	set_kernel_allocator(this->m_KernelAllocator);
 
 	this->m_SwapperManager = &g_SwapperManager;

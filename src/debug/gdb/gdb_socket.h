@@ -3,37 +3,37 @@
 
 #include "../debug.h"
 
-// Socket ¶¨Òå£¨Ê¹ÓÃ´®¿Ú³éÏó£©
+// Socket å®šä¹‰ï¼ˆä½¿ç”¨ä¸²å£æŠ½è±¡ï¼‰
 typedef int Socket;
 
-// ³õÊ¼»¯ socket ²ã£¨Êµ¼ÊÉÏÊÇ´®¿Ú£©
+// åˆå§‹åŒ– socket å±‚ï¼ˆå®é™…ä¸Šæ˜¯ä¸²å£ï¼‰
 int gdb_socket_init(void);
 
-// ´´½¨ socket£¨Êµ¼ÊÉÏÊÇ×¼±¸´®¿Ú£©
+// åˆ›å»º socketï¼ˆå®é™…ä¸Šæ˜¯å‡†å¤‡ä¸²å£ï¼‰
 Socket gdb_socket_create(void);
 
-// °ó¶¨¶Ë¿Ú£¨´®¿Ú²»Ê¹ÓÃ¶Ë¿Ú£¬±£Áô½Ó¿Ú£©
+// ç»‘å®šç«¯å£ï¼ˆä¸²å£ä¸ä½¿ç”¨ç«¯å£ï¼Œä¿ç•™æ¥å£ï¼‰
 int gdb_socket_bind(Socket sock, int port);
 
-// ¼àÌıÁ¬½Ó£¨´®¿ÚÖ±½Ó¿ÉÓÃ£©
+// ç›‘å¬è¿æ¥ï¼ˆä¸²å£ç›´æ¥å¯ç”¨ï¼‰
 int gdb_socket_listen(Socket sock);
 
-// ½ÓÊÜÁ¬½Ó£¨´®¿ÚÃ»ÓĞÁ¬½Ó¸ÅÄî£¬Ö±½Ó·µ»Ø£©
+// æ¥å—è¿æ¥ï¼ˆä¸²å£æ²¡æœ‰è¿æ¥æ¦‚å¿µï¼Œç›´æ¥è¿”å›ï¼‰
 Socket gdb_socket_accept(Socket sock);
 
-// ½ÓÊÕÊı¾İ£¨´Ó´®¿Ú½ÓÊÕ£©
+// æ¥æ”¶æ•°æ®ï¼ˆä»ä¸²å£æ¥æ”¶ï¼‰
 int gdb_socket_recv(Socket sock, char* buffer, int size);
 
-// ·¢ËÍÊı¾İ£¨Í¨¹ı´®¿Ú·¢ËÍ£©
+// å‘é€æ•°æ®ï¼ˆé€šè¿‡ä¸²å£å‘é€ï¼‰
 int gdb_socket_send(Socket sock, const char* data, int size);
 
-// ¹Ø±Õ socket£¨´®¿ÚÎŞĞè¹Ø±Õ£©
+// å…³é—­ socketï¼ˆä¸²å£æ— éœ€å…³é—­ï¼‰
 void gdb_socket_close(Socket sock);
 
-// ·Ç×èÈûÉèÖÃ£¨´®¿ÚÊ¼ÖÕ·Ç×èÈû£©
+// éé˜»å¡è®¾ç½®ï¼ˆä¸²å£å§‹ç»ˆéé˜»å¡ï¼‰
 void gdb_socket_set_nonblocking(Socket sock, int nonblock);
 
-// ¼ì²éÊÇ·ñÓĞÊı¾İ¿É¶Á
+// æ£€æŸ¥æ˜¯å¦æœ‰æ•°æ®å¯è¯»
 int gdb_socket_readable(Socket sock);
 
 #endif // V6PP_GDB_SOCKET_H

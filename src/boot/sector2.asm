@@ -421,6 +421,13 @@ parse_hex_byte:
     or al, dl
     ret
 
+normalize_debug_addr:
+    cmp eax, 0xC0000000
+    jae .done
+    add eax, 0xC0000000
+.done:
+    ret
+
 sync_frame_to_shadow:
     mov eax, [ebp + 28]
     mov [reg_shadow + 0], eax
@@ -820,6 +827,7 @@ handle_read_mem:
     call parse_hex_u32
     cmp bl, ','
     jne .bad
+    call normalize_debug_addr
     mov edi, eax
     mov dl, 0
     call parse_hex_u32
@@ -846,6 +854,7 @@ handle_write_mem:
     call parse_hex_u32
     cmp bl, ','
     jne .bad
+    call normalize_debug_addr
     mov edi, eax
     mov dl, ':'
     call parse_hex_u32
@@ -879,6 +888,7 @@ handle_write_mem_binary:
     call parse_hex_u32
     cmp bl, ','
     jne .bad
+    call normalize_debug_addr
     mov edi, eax
     mov dl, ':'
     call parse_hex_u32
@@ -1063,6 +1073,7 @@ handle_set_sw_break:
     call parse_hex_u32
     cmp bl, ','
     jne .bad
+    call normalize_debug_addr
     mov edi, eax
     mov dl, 0
     call parse_hex_u32
@@ -1117,6 +1128,7 @@ handle_clear_sw_break:
     call parse_hex_u32
     cmp bl, ','
     jne .bad
+    call normalize_debug_addr
     mov edi, eax
     mov dl, 0
     call parse_hex_u32

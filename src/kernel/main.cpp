@@ -103,6 +103,16 @@ void main0(void)
 {
 	Machine& machine = Machine::Instance();
 
+#ifdef EARLY_BOOT_GDB
+	/*
+	 * 在刚进入 C++ 内核主流程时先切到完整调试器，再继续后续初始化。
+	 * 这样从 sector2 继续执行后，可以先落到稳定的 C++ 检查点，
+	 * 再设置高级语言断点，避免跨阶段直接命中用户断点时的早期恢复问题。
+	 */
+	debug_start();
+	EARLY_BOOT_GDB_CHECKPOINT();
+#endif
+
 	Chip8253::Init(60);	// 初始化 PIT 定时器。
 	Chip8259A::Init();
 	Chip8259A::IrqEnable(Chip8259A::IRQ_TIMER);		

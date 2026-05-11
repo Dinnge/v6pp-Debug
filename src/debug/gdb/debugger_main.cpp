@@ -229,6 +229,7 @@ void debugger_main(void) {
                 if (g_debugger.resume_requested) {
                     g_debugger.resume_requested = 0;
                     debugger_set_target_running(1);
+                    serial_set_rx_interrupt_enabled(1);
                     return;
                 }
             } else if (packet_len < 0) {
@@ -338,6 +339,7 @@ static int debugger_handle_debug_trap(void) {
             }
             gdb_registers_commit_to_trap_frame();
             debugger_set_target_running(1);
+            serial_set_rx_interrupt_enabled(1);
             return 1;
         }
     }
@@ -346,6 +348,7 @@ static int debugger_handle_debug_trap(void) {
         gdb_clear_single_step();
         gdb_registers_commit_to_trap_frame();
         debugger_set_target_running(1);
+        serial_set_rx_interrupt_enabled(1);
         return 1;
     }
 
